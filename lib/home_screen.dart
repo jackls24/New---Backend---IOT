@@ -32,7 +32,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Home'),
+        title: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text('Home'),
+              SizedBox(width: 8),
+              Icon(Icons.directions_boat),
+            ],
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -40,30 +49,24 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _currentLocation == null
                 ? const Center(child: CircularProgressIndicator())
-                : Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'La tua posizione',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                : Column(
+                    children: [
+                                            const SizedBox(height: 300),
+
+                      const Text(
+                        'La tua posizione',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(height: 10),
-                        Container(
-                          height: 400,
-                          width: 400,
+                      ),
+                      Expanded(
+                        child: Container(
                           decoration: BoxDecoration(
-                            //color: Colors.white,
                             border: Border.all(color: Colors.blueAccent),
-                            //borderRadius: BorderRadius.circular(10),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.grey.withOpacity(0.5),
-                                //spreadRadius: 5,
-                                //blurRadius: 7,
                                 offset: const Offset(0, 3),
                               ),
                             ],
@@ -83,35 +86,62 @@ class _HomeScreenState extends State<HomeScreen> {
                             myLocationButtonEnabled: true,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
             Positioned(
               top: 10,
-              left: 10,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                //color: Colors.white,
-                child: Row(
-                  children: [
-                    const Text(
-                      'Stato Barca:',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+              right: 10,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Stato Barca:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: Colors.red, // Cambia a Colors.green per il bollino verde
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 5),
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: Colors.red, // Cambia a Colors.green per il bollino verde
-                        shape: BoxShape.circle,
-                      ),
+                  ),
+                  Container(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Connesso:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: Colors.red, // Cambia a Colors.green per il bollino verde
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],

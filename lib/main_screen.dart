@@ -30,9 +30,11 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      
+      /*appBar: AppBar(
         title: const Text('Bluetooth App'),
-      ),
+
+      ),*/
       // Usa IndexedStack per mantenere lo stato delle schermate
       body: IndexedStack(
         index: _selectedIndex,
@@ -44,7 +46,7 @@ class _MainScreenState extends State<MainScreen> {
         onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.directions_boat),
             label: 'Home',
           ),
           BottomNavigationBarItem(
