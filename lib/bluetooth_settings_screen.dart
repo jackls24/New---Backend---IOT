@@ -3,7 +3,6 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart'; // Add this line to import AppState
 
-
 class BluetoothSettingsScreen extends StatefulWidget {
   const BluetoothSettingsScreen({super.key});
 
@@ -21,30 +20,40 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _checkBluetoothStatus();
+    _getBluetoothStatus();
   }
 
-  Future<void> _checkBluetoothStatus() async {
+  Future<bool> _getBluetoothStatus() async {
     bool isOn = await FlutterBluePlus.isOn;
     setState(() {
       _isBluetoothOn = isOn;
     });
+    return isOn;
   }
 
   Future<void> _turnOnBluetooth() async {
-    if (!_isBluetoothOn) {
-      await FlutterBluePlus.turnOn();
-      _checkBluetoothStatus();
+    bool isOn = await _getBluetoothStatus();
+    try {
+      if (!isOn) {
+        await FlutterBluePlus.turnOn();
+        setState(() {
+          _isBluetoothOn = true;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isBluetoothOn = false;
+        _scanResults = [];
+      });
+      print("Errore durante l'attivazione del Bluetooth: $e");
     }
   }
 
   void _startScan() {
-   // Provider.of<AppState>(context, listen: false).updateStatus(true);
+    // Provider.of<AppState>(context, listen: false).updateStatus(true);
 
-    if (!_isBluetoothOn) {
-      _turnOnBluetooth();
-      return;
-    }
+    _turnOnBluetooth();
+
     setState(() {
       _isScanning = true;
       _scanResults = [];
@@ -59,11 +68,10 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
     FlutterBluePlus.startScan(timeout: const Duration(seconds: 10))
         .then((_) {
           setState(() {
-            _isScanning = false;
+            _isScanning = true;
           });
         })
         .catchError((error) {
-          _checkBluetoothStatus();
           setState(() {
             _isScanning = false;
           });
