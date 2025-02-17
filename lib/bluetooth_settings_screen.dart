@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-import 'package:provider/provider.dart';
-import 'app_state.dart'; // Add this line to import AppState
+import 'bluetooth_services.dart';
 
 class BluetoothSettingsScreen extends StatefulWidget {
   const BluetoothSettingsScreen({super.key});
@@ -12,63 +11,29 @@ class BluetoothSettingsScreen extends StatefulWidget {
 }
 
 class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
+  final BluetoothServices _bluetoothService = BluetoothServices();
+
   bool _isScanning = false;
-  bool _isBluetoothOn = false;
-  List<ScanResult> _scanResults = [];
+  bool _isConnected = false;
   BluetoothDevice? _connectedDevice;
+  List<ScanResult> _scanResults = [];
 
   @override
   void initState() {
     super.initState();
-    _getBluetoothStatus();
-  }
-
-  Future<bool> _getBluetoothStatus() async {
-    bool isOn = await FlutterBluePlus.isOn;
-    setState(() {
-      _isBluetoothOn = isOn;
-    });
-    return isOn;
-  }
-
-  Future<void> _turnOnBluetooth() async {
-    bool isOn = await _getBluetoothStatus();
-    try {
-      if (!isOn) {
-        await FlutterBluePlus.turnOn();
-        setState(() {
-          _isBluetoothOn = true;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isBluetoothOn = false;
-        _scanResults = [];
-      });
-      print("Errore durante l'attivazione del Bluetooth: $e");
-    }
+    _bluetoothService.getBluetoothStatus();
   }
 
   void _startScan() {
-    // Provider.of<AppState>(context, listen: false).updateStatus(true);
-
-    _turnOnBluetooth();
-
     setState(() {
       _isScanning = true;
       _scanResults = [];
     });
 
-    FlutterBluePlus.scanResults.listen((results) {
-      setState(() {
-        _scanResults = results;
-      });
-    });
-
-    FlutterBluePlus.startScan(timeout: const Duration(seconds: 10))
-        .then((_) {
+    _bluetoothService
+        .startScan((results) {
           setState(() {
-            _isScanning = true;
+            _scanResults = results;
           });
         })
         .catchError((error) {
@@ -80,7 +45,8 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
   }
 
   void _stopScan() {
-    FlutterBluePlus.stopScan()
+    _bluetoothService
+        .stopScan()
         .then((_) {
           setState(() {
             _isScanning = false;
@@ -94,26 +60,25 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
         });
   }
 
-  Future<void> _connectToDevice(BluetoothDevice device) async {
-    try {
-      await device.connect();
+   void _connectToDevice(BluetoothDevice device) {
+    _bluetoothService.connectToDevice(device).then((isConnected) {
       setState(() {
-        _connectedDevice = device;
+        if (isConnected) {
+          _connectedDevice = device;
+        } else {
+          _connectedDevice = null;
+        }
       });
-    } catch (e) {
-      print("Errore di connessione: $e");
-    }
+    });
   }
 
-  Future<void> _disconnectDevice() async {
-    if (_connectedDevice != null) {
-      await _connectedDevice!.disconnect();
+  void _disconnectDevice() {
+    _bluetoothService.disconnectDevice().then((_) {
       setState(() {
         _connectedDevice = null;
       });
-    }
+    });
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -122,7 +87,7 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
         children: [
           Column(
             children: [
-              if (!_isBluetoothOn)
+              if (!_bluetoothService.isBluetoothOn)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Text(
@@ -143,9 +108,8 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
                   ),
                 ),
               ),
-              Container(
+              SizedBox(
                 height: 600, // Altezza limitata della lista dispositivi
-                //color: const Color.fromARGB(255, 213, 140, 140),
                 child: ListView.builder(
                   itemCount: _scanResults.length,
                   itemBuilder: (context, index) {
@@ -160,7 +124,9 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
                       return Container(); // Non visualizzare il dispositivo senza nome
                     }
 
-                    bool isConnected = _connectedDevice == device;
+                  bool isConnected = _connectedDevice == device;
+                  print("isConnected: $_connectedDevice");
+
                     return ListTile(
                       title: Text(deviceName),
                       subtitle: Text('ID: ${device.remoteId}'),

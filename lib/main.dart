@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_3/configuration_form.dart';
-import 'package:flutter_application_3/home_screen.dart';
 import 'main_screen.dart';
+import 'notification_service.dart';
+//import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 void main() {
   runApp(const MyApp());
@@ -41,3 +41,41 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
+/*
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  _MainScreenState createState() => _MainScreenState();
+}
+
+
+
+class _MainScreenState extends State<MainScreen> {
+  late NotificationService notificationService;
+
+  @override
+  void initState() {
+    super.initState();
+    notificationService = NotificationService();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Main Screen'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: notificationService.showNotification,
+          child: const Text('Mostra Notifica'),
+        ),
+      ),
+    );
+  }
+}
+
+
+*/

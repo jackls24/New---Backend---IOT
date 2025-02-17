@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'bluetooth_settings_screen.dart';
-import 'package:provider/provider.dart';
-import 'app_state.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});

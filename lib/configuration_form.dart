@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 
 class ConfigurationForm extends StatefulWidget {
+  const ConfigurationForm({super.key});
+
   @override
   _ConfigurationFormState createState() => _ConfigurationFormState();
 }
@@ -110,11 +112,11 @@ class _ConfigurationFormState extends State<ConfigurationForm> {
               Center(
                 child: ElevatedButton(
                   onPressed: _submitForm,
-                  child: Text('Submit'),
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                     textStyle: TextStyle(fontSize: 18),
                   ),
+                  child: Text('Submit'),
                 ),
               ),
             ],
