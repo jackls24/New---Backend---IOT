@@ -1,5 +1,8 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'constant.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'bluetooth_message_type.dart';
 
@@ -54,8 +57,8 @@ class BluetoothServices {
     }
   }
 
-  Future<Map<String, dynamic>> readAndExecuteCharacteristic() async {
-    if (_targetCharacteristic == null) {
+  Future<Map<String, dynamic>> readCharacteristic() async {
+    if (_targetCharacteristic == null || !_isConnected) {
       return {};
     }
     List<int> value = await _targetCharacteristic!.read();
@@ -63,8 +66,6 @@ class BluetoothServices {
 
     try {
       Map<String, dynamic> jsonResponse = jsonDecode(jsonString);
-      print("jsonResponse: $jsonResponse");
-      handleCharacteristicResponse(jsonResponse);
       return jsonResponse;
     } catch (e) {
       print("Errore durante la decodifica del JSON: $e");
@@ -73,7 +74,7 @@ class BluetoothServices {
   }
 
   Future<void> writeCharacteristic(String jsonString) async {
-    if (_targetCharacteristic == null) {
+    if (_targetCharacteristic == null || !_isConnected) {
       return;
     }
     List<int> value = utf8.encode(jsonString);
@@ -86,34 +87,10 @@ class BluetoothServices {
 
   Future<bool> confirmConnection() async {
     if (_targetCharacteristic != null) {
-      Map<String, dynamic> jsonResponse = await readAndExecuteCharacteristic();
+      Map<String, dynamic> jsonResponse = await readCharacteristic();
       return jsonResponse["type"] == "CONFIRM_CONNECTION";
     }
     return false;
-  }
-
-  bool handleCharacteristicResponse(Map<String, dynamic> jsonResponse) {
-    BluetoothMessageType messageType = getMessageType(jsonResponse["type"]);
-    switch (messageType) {
-      case BluetoothMessageType.confirmConnection:
-        _isConnected = true;
-        print("Connessione confermata");
-        return true;
-      case BluetoothMessageType.disconnect:
-        print("Disconnessione richiesta");
-        disconnectDevice();
-        return false;
-      case BluetoothMessageType.dataTransfer:
-        print("Dati ricevuti: ${jsonResponse["data"]}");
-        return false;
-      case BluetoothMessageType.error:
-        print("Errore ricevuto: ${jsonResponse["message"]}");
-        return false;
-      case BluetoothMessageType.unknown:
-      default:
-        print("Tipo di messaggio sconosciuto: ${jsonResponse["type"]}");
-        return false;
-    }
   }
 
   Future<bool> connectToDevice(BluetoothDevice device) async {
@@ -126,6 +103,7 @@ class BluetoothServices {
         await getServices(device);
         await sendConnectionRequest();
         await confirmConnection();
+        onConnectionStateChanged(device);
       } catch (e) {
         print("Errore durante la connessione: $e");
         await device.disconnect();
@@ -145,6 +123,90 @@ class BluetoothServices {
       _connectedDevice = null;
       _isConnected = false;
     }
-      return _isConnected;
+    return _isConnected;
+  }
+
+  void onConnectionStateChanged(BluetoothDevice device) {
+    device.connectionState.listen((BluetoothConnectionState state) {
+      switch (state) {
+        case BluetoothConnectionState.connected:
+          _isConnected = true;
+          _connectedDevice = device;
+          print("Dispositivo connesso: ${device.name}");
+          break;
+        case BluetoothConnectionState.disconnected:
+          _isConnected = false;
+          _connectedDevice = null;
+          print("Dispositivo disconnesso: ${device.name}");
+          break;
+        case BluetoothConnectionState.connecting:
+          print("Connessione in corso: ${device.name}");
+          break;
+        case BluetoothConnectionState.disconnecting:
+          print("Disconnessione in corso: ${device.name}");
+          break;
+      }
+    });
+  }
+
+  Future<void> subscribeToCharacteristic() async {
+    print("_targetCharacteristic: subscribeToCharacteristic $_targetCharacteristic");
+    print("_isConnected subscribeToCharacteristic: $_isConnected");
+
+    if (_targetCharacteristic == null ||
+        !_isConnected) {
+      print("subscribeToCharacteristic Dispositivo non connesso o caratteristica non trovata");
+      return;
+    }
+
+    await _targetCharacteristic!.setNotifyValue(true);
+
+    _targetCharacteristic!.onValueReceived.listen((value) {
+      String jsonString = utf8.decode(value);
+      print("subscribeToCharacteristic Valore ricevuto subscribeToCharacteristic: $jsonString");
+
+      try {
+        Map<String, dynamic> jsonResponse = jsonDecode(jsonString);
+        handleCharacteristicResponse(jsonResponse);
+      } catch (e) {
+        print("Errore durante la decodifica del JSON: $e");
+      }
+    });
+  }
+  
+  Future<Map<String, dynamic>> requestInfo() async {
+    await writeCharacteristic(GET_INFO_MESSAGE);
+    Map<String, dynamic> jsonResponse = await readCharacteristic();
+    
+    if (jsonResponse.isEmpty || jsonResponse.length == 1 && jsonResponse.containsKey("type")) {
+      return {};
+    }
+    return jsonResponse;
+  }
+
+  bool handleCharacteristicResponse(Map<String, dynamic> jsonResponse) {
+    BluetoothMessageType messageType = getMessageType(jsonResponse["type"]);
+    switch (messageType) {
+      case BluetoothMessageType.confirmConnection:
+        print("Connessione confermata");
+        return true;
+      case BluetoothMessageType.disconnect:
+        print("Disconnessione richiesta");
+        disconnectDevice();
+        return false;
+      case BluetoothMessageType.dataTransfer:
+        print("Dati ricevuti: ${jsonResponse["data"]}");
+        return false;
+      case BluetoothMessageType.error:
+        print("Errore ricevuto: ${jsonResponse["message"]}");
+        return false;
+      case BluetoothMessageType.getInfo:
+        //getInfo(jsonResponse);
+        return false;
+      case BluetoothMessageType.unknown:
+      default:
+        print("Tipo di messaggio sconosciuto: ${jsonResponse["type"]}");
+        return false;
+    }
   }
 }

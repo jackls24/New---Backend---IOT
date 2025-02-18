@@ -6,6 +6,7 @@ final String REQUEST_CONNECTION_MESSAGE = jsonEncode({"type": "REQUEST_CONNECTIO
 final String CONFIRM_CONNECTION_MESSAGE = jsonEncode({"type": "CONFIRM_CONNECTION"});
 final String DISCONNECT_MESSAGE = jsonEncode({"type": "DISCONNECT"});
 final String DATA_TRANSFER_MESSAGE = jsonEncode({"type": "DATA_TRANSFER", "data": ""});
+final String GET_INFO_MESSAGE = jsonEncode({"type": "GET_INFO"});
 final String ERROR_MESSAGE = jsonEncode({"type": "ERROR", "message": ""});
 
 

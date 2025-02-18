@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'bluetooth_services.dart';
+import 'configuration_form.dart'; // Add this line to import ConfigurationForm
+import 'constant.dart';
 
 class BluetoothSettingsScreen extends StatefulWidget {
   const BluetoothSettingsScreen({super.key});
@@ -60,14 +62,29 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
         });
   }
 
-   void _connectToDevice(BluetoothDevice device) {
+  void getInfo() {
+    _bluetoothService.requestInfo().then((jsonResponse) {
+      print("getInfo() jsonResponse: $jsonResponse");
+      if (jsonResponse.isEmpty || jsonResponse["type"] == "ERROR") {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ConfigurationForm()),
+        );
+      } else {
+        print("Informazioni ricevute: $jsonResponse");
+        // Visualizza l'oggetto ricevuto come desiderato
+      }
+    });
+  }
+
+  void _connectToDevice(BluetoothDevice device) {
     _bluetoothService.connectToDevice(device).then((isConnected) {
+      if (isConnected) {
+        _bluetoothService.subscribeToCharacteristic();
+        getInfo(); // Chiamata a getInfo dopo la connessione
+      }
       setState(() {
-        if (isConnected) {
-          _connectedDevice = device;
-        } else {
-          _connectedDevice = null;
-        }
+        _connectedDevice = isConnected ? device : null;
       });
     });
   }
@@ -79,6 +96,7 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
       });
     });
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,8 +142,8 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
                       return Container(); // Non visualizzare il dispositivo senza nome
                     }
 
-                  bool isConnected = _connectedDevice == device;
-                  print("isConnected: $_connectedDevice");
+                    bool isConnected = _connectedDevice == device;
+                    print("isConnected: $_connectedDevice");
 
                     return ListTile(
                       title: Text(deviceName),

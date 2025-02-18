@@ -3,6 +3,7 @@ enum BluetoothMessageType {
   disconnect,
   dataTransfer,
   error,
+  getInfo,
   unknown,
 }
 
@@ -16,6 +17,8 @@ BluetoothMessageType getMessageType(String type) {
       return BluetoothMessageType.dataTransfer;
     case "ERROR":
       return BluetoothMessageType.error;
+    case "GET_INFO":
+      return BluetoothMessageType.getInfo;
     default:
       return BluetoothMessageType.unknown;
   }
