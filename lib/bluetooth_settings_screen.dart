@@ -81,11 +81,39 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
     _bluetoothService.connectToDevice(device).then((isConnected) {
       if (isConnected) {
         _bluetoothService.subscribeToCharacteristic();
-        getInfo(); // Chiamata a getInfo dopo la connessione
+        getInfo();
       }
       setState(() {
         _connectedDevice = isConnected ? device : null;
       });
+    }).catchError((error) {
+            setState(() {
+        _connectedDevice = null;
+        _scanResults = [];
+        _isConnected = false;
+
+      });
+
+      _stopScan();
+      _startScan();
+
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Errore di connessione'),
+            content: Text('Si è verificato un errore durante la connessione: $error'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
     });
   }
 

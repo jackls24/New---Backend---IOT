@@ -107,6 +107,7 @@ class BluetoothServices {
       } catch (e) {
         print("Errore durante la connessione: $e");
         await device.disconnect();
+        throw Exception("Errore durante la connessione: $e");
       }
     }
 
@@ -150,12 +151,15 @@ class BluetoothServices {
   }
 
   Future<void> subscribeToCharacteristic() async {
-    print("_targetCharacteristic: subscribeToCharacteristic $_targetCharacteristic");
+    print(
+      "_targetCharacteristic: subscribeToCharacteristic $_targetCharacteristic",
+    );
     print("_isConnected subscribeToCharacteristic: $_isConnected");
 
-    if (_targetCharacteristic == null ||
-        !_isConnected) {
-      print("subscribeToCharacteristic Dispositivo non connesso o caratteristica non trovata");
+    if (_targetCharacteristic == null || !_isConnected) {
+      print(
+        "subscribeToCharacteristic Dispositivo non connesso o caratteristica non trovata",
+      );
       return;
     }
 
@@ -163,7 +167,9 @@ class BluetoothServices {
 
     _targetCharacteristic!.onValueReceived.listen((value) {
       String jsonString = utf8.decode(value);
-      print("subscribeToCharacteristic Valore ricevuto subscribeToCharacteristic: $jsonString");
+      print(
+        "subscribeToCharacteristic Valore ricevuto subscribeToCharacteristic: $jsonString",
+      );
 
       try {
         Map<String, dynamic> jsonResponse = jsonDecode(jsonString);
@@ -173,12 +179,13 @@ class BluetoothServices {
       }
     });
   }
-  
+
   Future<Map<String, dynamic>> requestInfo() async {
     await writeCharacteristic(GET_INFO_MESSAGE);
     Map<String, dynamic> jsonResponse = await readCharacteristic();
-    
-    if (jsonResponse.isEmpty || jsonResponse.length == 1 && jsonResponse.containsKey("type")) {
+
+    if (jsonResponse.isEmpty ||
+        jsonResponse.length == 1 && jsonResponse.containsKey("type")) {
       return {};
     }
     return jsonResponse;
