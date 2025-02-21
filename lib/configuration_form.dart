@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'bluetooth_services.dart'; // Importa BluetoothServices
 
 class ConfigurationForm extends StatefulWidget {
-  const ConfigurationForm({super.key});
+  final String deviceMac;
+
+  const ConfigurationForm({super.key, required this.deviceMac});
 
   @override
   _ConfigurationFormState createState() => _ConfigurationFormState();
@@ -11,18 +14,29 @@ class ConfigurationForm extends StatefulWidget {
 class _ConfigurationFormState extends State<ConfigurationForm> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, String> _formData = {
-    'field1': '',
-    'field2': '',
-    'field3': '',
-    'field4': '',
+    'targa': '',
+    'macAddress': '',
+    'dispName': '',
+    'lat': '',
+    'long': '',
   };
 
+  @override
+  void initState() {
+    super.initState();
+    _formData['macAddress'] = widget.deviceMac;
+  }
+
   void _submitForm() {
+
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       String jsonData = jsonEncode(_formData);
-      print('JSON Data: $jsonData');
-      // Puoi fare qualcosa con il JSON, come inviarlo a un server
+      BluetoothServices.sendInfo(_formData);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Per favore, compila tutti i campi')),
+      );
     }
   }
 
@@ -39,19 +53,33 @@ class _ConfigurationFormState extends State<ConfigurationForm> {
             children: [
               Text(
                 'Compila il modulo',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 20),
               TextFormField(
                 decoration: InputDecoration(
-                  labelText: 'Titolo 1',
+                  labelText: 'Targa',
                   border: OutlineInputBorder(),
                 ),
                 onSaved: (value) {
-                  _formData['field1'] = value ?? '';
+                  _formData['targa'] = value ?? '';
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Per favore inserisci un valore';
+                  }
+                  return null;
+                },
+              ),
+              SizedBox(height: 20),
+              TextFormField(
+                initialValue: widget.deviceMac,
+                decoration: InputDecoration(
+                  labelText: 'MAC Address',
+                  border: OutlineInputBorder(),
+                ),
+                onSaved: (value) {
+                  _formData['macAddress'] = value ?? '';
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -63,11 +91,11 @@ class _ConfigurationFormState extends State<ConfigurationForm> {
               SizedBox(height: 20),
               TextFormField(
                 decoration: InputDecoration(
-                  labelText: 'Titolo 2',
+                  labelText: 'Nome Dispositivo',
                   border: OutlineInputBorder(),
                 ),
                 onSaved: (value) {
-                  _formData['field2'] = value ?? '';
+                  _formData['dispName'] = value ?? '';
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -79,11 +107,11 @@ class _ConfigurationFormState extends State<ConfigurationForm> {
               SizedBox(height: 20),
               TextFormField(
                 decoration: InputDecoration(
-                  labelText: 'Titolo 3',
+                  labelText: 'Latitudine',
                   border: OutlineInputBorder(),
                 ),
                 onSaved: (value) {
-                  _formData['field3'] = value ?? '';
+                  _formData['lat'] = value ?? '';
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -95,11 +123,11 @@ class _ConfigurationFormState extends State<ConfigurationForm> {
               SizedBox(height: 20),
               TextFormField(
                 decoration: InputDecoration(
-                  labelText: 'Titolo 4',
+                  labelText: 'Longitudine',
                   border: OutlineInputBorder(),
                 ),
                 onSaved: (value) {
-                  _formData['field4'] = value ?? '';
+                  _formData['long'] = value ?? '';
                 },
                 validator: (value) {
                   if (value == null || value.isEmpty) {

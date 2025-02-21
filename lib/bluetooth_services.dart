@@ -5,29 +5,49 @@ import 'constant.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'bluetooth_message_type.dart';
+import 'models/boat_info.dart'; // Importa BoatInfo
+import 'package:flutter/foundation.dart'; // Importa ValueNotifier
+import 'package:shared_preferences/shared_preferences.dart'; // Importa SharedPreferences
+import 'dart:io'; // Importa File
 
 class BluetoothServices {
-  bool _isBluetoothOn = false;
-  bool _isConnected = false;
+  // Singleton instance
+  static final BluetoothServices _instance = BluetoothServices._internal();
 
-  BluetoothDevice? _connectedDevice;
-  BluetoothCharacteristic? _targetCharacteristic;
+  // Private constructor
+  BluetoothServices._internal();
 
-  bool get isBluetoothOn => _isBluetoothOn;
-  bool get isConnected => _isConnected;
-  BluetoothDevice? get connectedDevice => _connectedDevice;
+  // Factory constructor
+  factory BluetoothServices() {
+    return _instance;
+  }
 
-  set isConnected(bool value) {
+  static bool _isBluetoothOn = false;
+  static bool _isConnected = false;
+  static bool _isVirtualConnected = false;
+
+  static BluetoothDevice? _connectedDevice;
+  static BluetoothCharacteristic? _targetCharacteristic;
+
+  static bool get isBluetoothOn => _isBluetoothOn;
+  static bool get isConnected => _isConnected;
+  static BluetoothDevice? get connectedDevice => _connectedDevice;
+
+  static set isConnected(bool value) {
     _isConnected = value;
   }
 
-  Future<bool> getBluetoothStatus() async {
+  static final ValueNotifier<bool> isConnectedNotifier = ValueNotifier<bool>(
+    false,
+  );
+
+  static Future<bool> getBluetoothStatus() async {
     bool isOn = await FlutterBluePlus.isOn;
     _isBluetoothOn = isOn;
     return isOn;
   }
 
-  Future<void> turnOnBluetooth() async {
+  static Future<void> turnOnBluetooth() async {
     bool isOn = await getBluetoothStatus();
     if (!isOn) {
       await FlutterBluePlus.turnOn();
@@ -35,17 +55,17 @@ class BluetoothServices {
     }
   }
 
-  Future<void> startScan(Function(List<ScanResult>) onScanResult) async {
+  static Future<void> startScan(Function(List<ScanResult>) onScanResult) async {
     await turnOnBluetooth();
     FlutterBluePlus.scanResults.listen(onScanResult);
     await FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
   }
 
-  Future<void> stopScan() async {
+  static Future<void> stopScan() async {
     await FlutterBluePlus.stopScan();
   }
 
-  Future<void> getServices(BluetoothDevice device) async {
+  static Future<void> getServices(BluetoothDevice device) async {
     List<BluetoothService> services = await device.discoverServices();
     for (BluetoothService service in services) {
       for (BluetoothCharacteristic characteristic in service.characteristics) {
@@ -57,35 +77,42 @@ class BluetoothServices {
     }
   }
 
-  Future<Map<String, dynamic>> readCharacteristic() async {
+  static Future<Map<String, dynamic>> readCharacteristic() async {
     if (_targetCharacteristic == null || !_isConnected) {
       return {};
     }
-    List<int> value = await _targetCharacteristic!.read();
-    String jsonString = utf8.decode(value);
-
     try {
+      List<int> value = await _targetCharacteristic!.read();
+      String jsonString = utf8.decode(value);
+
       Map<String, dynamic> jsonResponse = jsonDecode(jsonString);
       return jsonResponse;
     } catch (e) {
       print("Errore durante la decodifica del JSON: $e");
-      return {"type": "UNKNOWN", "message": jsonString};
+      return {"type": "UNKNOWN", "message": e.toString()};
     }
   }
 
-  Future<void> writeCharacteristic(String jsonString) async {
-    if (_targetCharacteristic == null || !_isConnected) {
-      return;
+  static Future<bool> writeCharacteristic(String jsonString) async {
+    try {
+      if (_targetCharacteristic == null || !_isConnected) {
+        return false;
+      }
+
+      List<int> value = utf8.encode(jsonString);
+      await _targetCharacteristic!.write(value);
+      return true;
+    } catch (e) {
+      print("Errore durante la scrittura del JSON: $e");
+      return false;
     }
-    List<int> value = utf8.encode(jsonString);
-    await _targetCharacteristic!.write(value);
   }
 
-  Future<void> sendConnectionRequest() async {
+  static Future<void> sendConnectionRequest() async {
     await writeCharacteristic(REQUEST_CONNECTION_MESSAGE);
   }
 
-  Future<bool> confirmConnection() async {
+  static Future<bool> confirmConnection() async {
     if (_targetCharacteristic != null) {
       Map<String, dynamic> jsonResponse = await readCharacteristic();
       return jsonResponse["type"] == "CONFIRM_CONNECTION";
@@ -93,7 +120,38 @@ class BluetoothServices {
     return false;
   }
 
-  Future<bool> connectToDevice(BluetoothDevice device) async {
+  static Future<void> saveConnectedDevice(BluetoothDevice device) async {
+    try {
+      final file = File('/Users/giacomo/Documents/flutter_application_3/remoteId.txt');
+      await file.writeAsString(device.remoteId.toString());
+      print("saveConnectedDevice: Saved: ${device.remoteId.toString()}");
+    } catch (e) {
+      print("Errore durante il salvataggio del dispositivo connesso: $e");
+    }
+  }
+
+  static Future<BluetoothDevice?> getSavedConnectedDevice() async {
+    try {
+      final file = File('/Users/giacomo/Documents/flutter_application_3/remoteId.txt');
+      if (await file.exists()) {
+        final remoteId = await file.readAsString();
+        return BluetoothDevice.fromId(remoteId);
+      }
+    } catch (e) {
+      print("Errore durante il recupero del dispositivo connesso: $e");
+    }
+    return null;
+  }
+
+  static Future<void> autoConnectToSavedDevice() async {
+    BluetoothDevice? device = await getSavedConnectedDevice();
+    print("autoConnectToSavedDevice device: $device");
+    if (device != null) {
+      await autoConnectToDevice(device);
+    }
+  }
+
+  static Future<bool> connectToDevice(BluetoothDevice device) async {
     int attempt = 0;
 
     while (attempt < MAXATTEMPTSCONNECTION && !_isConnected) {
@@ -104,9 +162,10 @@ class BluetoothServices {
         await sendConnectionRequest();
         await confirmConnection();
         onConnectionStateChanged(device);
+        await saveConnectedDevice(device); // Salva il dispositivo connesso
       } catch (e) {
-        print("Errore durante la connessione: $e");
         await device.disconnect();
+        print("Errore durante la connessione: $e");
         throw Exception("Errore durante la connessione: $e");
       }
     }
@@ -118,26 +177,45 @@ class BluetoothServices {
     return _isConnected;
   }
 
-  Future<bool> disconnectDevice() async {
+  static Future<void> autoConnectToDevice(BluetoothDevice device) async {
+    try {
+      await device.connect(autoConnect: true, mtu: null);
+      await device.connectionState
+          .where((val) => val == BluetoothConnectionState.connected)
+          .first;
+      await getServices(device);
+      await sendConnectionRequest();
+      await confirmConnection();
+      onConnectionStateChanged(device);
+    } catch (e) {
+      await device.disconnect();
+      print("Errore durante la auto connessione: $e");
+      throw Exception("Errore durante la auto connessione: $e");
+    }
+  }
+
+  static Future<bool> disconnectDevice() async {
     if (_connectedDevice != null) {
       await _connectedDevice!.disconnect();
       _connectedDevice = null;
       _isConnected = false;
+      _isVirtualConnected = false;
     }
     return _isConnected;
   }
 
-  void onConnectionStateChanged(BluetoothDevice device) {
+  static void onConnectionStateChanged(BluetoothDevice device) {
     device.connectionState.listen((BluetoothConnectionState state) {
       switch (state) {
         case BluetoothConnectionState.connected:
           _isConnected = true;
           _connectedDevice = device;
+          isConnectedNotifier.value = true;
+
           print("Dispositivo connesso: ${device.name}");
           break;
         case BluetoothConnectionState.disconnected:
-          _isConnected = false;
-          _connectedDevice = null;
+          isConnectedNotifier.value = false;
           print("Dispositivo disconnesso: ${device.name}");
           break;
         case BluetoothConnectionState.connecting:
@@ -150,7 +228,7 @@ class BluetoothServices {
     });
   }
 
-  Future<void> subscribeToCharacteristic() async {
+  static Future<void> subscribeToCharacteristic() async {
     print(
       "_targetCharacteristic: subscribeToCharacteristic $_targetCharacteristic",
     );
@@ -180,21 +258,37 @@ class BluetoothServices {
     });
   }
 
-  Future<Map<String, dynamic>> requestInfo() async {
+  static Future<BoatInfo?> requestInfo() async {
     await writeCharacteristic(GET_INFO_MESSAGE);
     Map<String, dynamic> jsonResponse = await readCharacteristic();
 
     if (jsonResponse.isEmpty ||
         jsonResponse.length == 1 && jsonResponse.containsKey("type")) {
-      return {};
+      return null;
     }
-    return jsonResponse;
+
+    if (jsonResponse.containsKey("data")) {
+      print("BoatInfo :$jsonResponse");
+      return BoatInfo.fromJson(jsonResponse["data"]);
+    }
+
+    return null;
   }
 
-  bool handleCharacteristicResponse(Map<String, dynamic> jsonResponse) {
+  static Future<void> sendInfo(Map<String, dynamic> info) async {
+    //await writeCharacteristic(SEND_INFO_MESSAGE);
+    print("info: $info");
+    String jsonString = jsonEncode({"type": "SEND_INFO", "data": info});
+    print("sendInfo: $jsonString");
+    await writeCharacteristic(jsonString);
+  }
+
+  static bool handleCharacteristicResponse(Map<String, dynamic> jsonResponse) {
     BluetoothMessageType messageType = getMessageType(jsonResponse["type"]);
     switch (messageType) {
       case BluetoothMessageType.confirmConnection:
+        _isVirtualConnected = true;
+
         print("Connessione confermata");
         return true;
       case BluetoothMessageType.disconnect:
@@ -210,6 +304,9 @@ class BluetoothServices {
       case BluetoothMessageType.getInfo:
         //getInfo(jsonResponse);
         return false;
+      case BluetoothMessageType.sendInfo:
+        print("Informazioni inviate correttamente");
+        return true;
       case BluetoothMessageType.unknown:
       default:
         print("Tipo di messaggio sconosciuto: ${jsonResponse["type"]}");

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'bluetooth_services.dart';
-import 'configuration_form.dart'; // Add this line to import ConfigurationForm
+import 'configuration_form.dart'; // Importa ConfigurationForm
 import 'constant.dart';
+import 'models/boat_info.dart'; // Importa BoatInfo
+import 'dart:async'; // Importa Timer
 
 class BluetoothSettingsScreen extends StatefulWidget {
   const BluetoothSettingsScreen({super.key});
@@ -13,17 +15,36 @@ class BluetoothSettingsScreen extends StatefulWidget {
 }
 
 class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
-  final BluetoothServices _bluetoothService = BluetoothServices();
-
   bool _isScanning = false;
   bool _isConnected = false;
   BluetoothDevice? _connectedDevice;
   List<ScanResult> _scanResults = [];
+  BoatInfo? _boatInfo;
+  Timer? _autoConnectTimer;
 
   @override
   void initState() {
     super.initState();
-    _bluetoothService.getBluetoothStatus();
+    BluetoothServices.getBluetoothStatus();
+    _startAutoConnectTimer();
+  }
+
+  @override
+  void dispose() {
+    _stopAutoConnectTimer();
+    super.dispose();
+  }
+
+  void _startAutoConnectTimer() {
+    _autoConnectTimer?.cancel();
+    _autoConnectTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      print("----------autoConnectToSavedDevice-----------");
+     //BluetoothServices.autoConnectToSavedDevice();
+    });
+  }
+
+  void _stopAutoConnectTimer() {
+    _autoConnectTimer?.cancel();
   }
 
   void _startScan() {
@@ -32,7 +53,7 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
       _scanResults = [];
     });
 
-    _bluetoothService
+    BluetoothServices
         .startScan((results) {
           setState(() {
             _scanResults = results;
@@ -47,7 +68,7 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
   }
 
   void _stopScan() {
-    _bluetoothService
+    BluetoothServices
         .stopScan()
         .then((_) {
           setState(() {
@@ -63,24 +84,31 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
   }
 
   void getInfo() {
-    _bluetoothService.requestInfo().then((jsonResponse) {
-      print("getInfo() jsonResponse: $jsonResponse");
-      if (jsonResponse.isEmpty || jsonResponse["type"] == "ERROR") {
+    BluetoothServices.requestInfo().then((boatInfo) {
+
+      if (boatInfo == null || boatInfo != null ) { //per debug da cambiare
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => ConfigurationForm()),
+          MaterialPageRoute(
+            builder: (context) => ConfigurationForm(
+              deviceMac: _connectedDevice?.remoteId.toString() ?? '',
+            ),
+          ),
         );
       } else {
-        print("Informazioni ricevute: $jsonResponse");
+        setState(() {
+          _boatInfo = boatInfo;
+        });
+        print("Informazioni ricevute: ${boatInfo.toString()}");
         // Visualizza l'oggetto ricevuto come desiderato
       }
     });
   }
 
   void _connectToDevice(BluetoothDevice device) {
-    _bluetoothService.connectToDevice(device).then((isConnected) {
+    BluetoothServices.connectToDevice(device).then((isConnected) {
       if (isConnected) {
-        _bluetoothService.subscribeToCharacteristic();
+        BluetoothServices.subscribeToCharacteristic();
         getInfo();
       }
       setState(() {
@@ -118,7 +146,7 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
   }
 
   void _disconnectDevice() {
-    _bluetoothService.disconnectDevice().then((_) {
+    BluetoothServices.disconnectDevice().then((_) {
       setState(() {
         _connectedDevice = null;
       });
@@ -133,7 +161,7 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
         children: [
           Column(
             children: [
-              if (!_bluetoothService.isBluetoothOn)
+              if (!BluetoothServices.isBluetoothOn)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: Text(
