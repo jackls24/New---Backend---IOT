@@ -6,11 +6,12 @@ import 'login_screen.dart';
 late final CognitoManager _cognitoManager;
 
 void main() async {
-  //WidgetsFlutterBinding.ensureInitialized();
-  //_cognitoManager = CognitoManager();
-  //await _cognitoManager.init();
+  WidgetsFlutterBinding.ensureInitialized();
+  _cognitoManager = CognitoManager();
+  await _cognitoManager.init();
 
   runApp(const MyApp());
+
 
 }
 

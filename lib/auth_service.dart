@@ -1,6 +1,7 @@
 import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'session.dart'; // Assicurati di importare la classe Session
 
 class CognitoServiceException implements Exception {
   final String message;
@@ -12,6 +13,8 @@ class User {
   bool userConfirmed;
   bool sessionValid;
   String? userSub;
+  String givenName;   // Nome
+  String familyName;  // Cognome
   Map<String, dynamic> claims;
 
   User(
@@ -19,12 +22,16 @@ class User {
     this.userConfirmed,
     this.sessionValid,
     this.userSub,
+    this.givenName,
+    this.familyName,
     this.claims,
   );
 }
 
 class CognitoManager {
   late final CognitoUserPool userPool;
+    static User? currentUser;
+
 
   CognitoManager();
 
@@ -54,6 +61,8 @@ class CognitoManager {
         result.userConfirmed ?? false,
         false,
         result.userSub,
+        firstName,
+        lastName,
         {},
       );
     } catch (e) {
@@ -68,6 +77,13 @@ class CognitoManager {
     } catch (e) {
       throw CognitoServiceException(e.toString());
     }
+  }
+
+  Future<void> signOut() async {
+    if (currentUser == null) return;
+    final cognitoUser = CognitoUser(currentUser!.username, userPool);
+    await cognitoUser.signOut();
+    currentUser = null;
   }
 
   Future<User> signIn(String email, String password) async {
@@ -86,14 +102,25 @@ class CognitoManager {
       var claims = <String, dynamic>{};
       claims.addAll(session.idToken.payload);
       claims.addAll(session.accessToken.payload);
-      
-      return User(
-        email,
-        true,
-        session.isValid(),
-        session.idToken.getSub() ?? "",
-        claims,
-      );
+
+        final givenName = claims['given_name'] ?? '';
+       final familyName = claims['family_name'] ?? '';
+
+      currentUser = User(
+      email,
+      true,
+      session.isValid(),
+      session.idToken.getSub() ?? "",
+      givenName,
+      familyName,
+      claims,
+    );
+
+    // Salva solo l'accessToken in modo persistente
+    await Session.saveUserSession({'accessToken': session.accessToken.jwtToken});
+
+      return currentUser!;
+
     } catch (e) {
       throw CognitoServiceException(e.toString());
     }
