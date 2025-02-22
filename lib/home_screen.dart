@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'location_service.dart';
 import 'package:location/location.dart';
-import 'bluetooth_services.dart'; // Importa BluetoothServices
-import 'models/boat_info.dart'; // Importa BoatInfo
+import 'bluetooth_services.dart';
+import 'models/boat_info.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,7 +46,6 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     final boatInfo = await BluetoothServices.requestInfo();
-
     setState(() {
       _boatInfo = boatInfo;
     });
@@ -55,7 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onDeviceConnected() {
     setState(() {
       _isConnected = BluetoothServices.isConnectedNotifier.value;
-
     });
   }
 
@@ -68,145 +66,157 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // Widget per visualizzare lo stato (connesso/non connesso)
+  Widget statusIndicator(String label, bool connected) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: connected ? Colors.green : Colors.red,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text('Home'),
-              SizedBox(width: 8),
-              Icon(Icons.directions_boat),
-            ],
+      // Background a gradiente accattivante
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xff0D47A1), Color(0xff1976D2), Color(0xff42A5F5)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
         ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Stack(
-          children: [
-            _currentLocation == null
-                ? const Center(child: CircularProgressIndicator())
-                : Column(
-                  children: [
-                    const SizedBox(height: 300),
-                    const Text(
-                      'La tua posizione',
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header custom con icona e titolo
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.directions_boat, color: Colors.white, size: 28),
+                    SizedBox(width: 8),
+                    Text(
+                      'Home',
                       style: TextStyle(
-                        fontSize: 18,
+                        color: Colors.white,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
                       ),
-                    ),
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.blueAccent),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.5),
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: GoogleMap(
-                          initialCameraPosition: CameraPosition(
-                            target: LatLng(
-                              _currentLocation!.latitude!,
-                              _currentLocation!.longitude!,
-                            ),
-                            zoom: 15,
-                          ),
-                          onMapCreated: (controller) {
-                            _controller = controller;
-                          },
-                          myLocationEnabled: true,
-                          myLocationButtonEnabled: true,
-                        ),
-                      ),
-                    ),
-                    if (BluetoothServices.isConnected && _boatInfo != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Targa: ${_boatInfo!.targa}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Nome Dispositivo: ${_boatInfo!.dispName}',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    )
                   ],
                 ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Container(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Stato Barca:',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: _isConnected ? Colors.green : Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Connesso:',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: _isConnected ? Colors.green : Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ),
-            ),
-          ],
+              Expanded(
+                child: _currentLocation == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            // Card per Google Maps con bordo arrotondato
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Card(
+                                elevation: 6,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16.0),
+                                ),
+                                child: SizedBox(
+                                  height: 300,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16.0),
+                                    child: GoogleMap(
+                                      initialCameraPosition: CameraPosition(
+                                        target: LatLng(
+                                          _currentLocation!.latitude!,
+                                          _currentLocation!.longitude!,
+                                        ),
+                                        zoom: 15,
+                                      ),
+                                      onMapCreated: (controller) {
+                                        _controller = controller;
+                                      },
+                                      myLocationEnabled: true,
+                                      myLocationButtonEnabled: true,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // Card per le informazioni della barca (se connesso)
+                            if (BluetoothServices.isConnected &&
+                                _boatInfo != null)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16.0, vertical: 8.0),
+                                child: Card(
+                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16.0),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Targa: ${_boatInfo!.targa}',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Nome Dispositivo: ${_boatInfo!.dispName}',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            // Indicatori di stato
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  statusIndicator('Stato Barca', _isConnected),
+                                  const SizedBox(width: 24),
+                                  statusIndicator('Connesso', _isConnected),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
