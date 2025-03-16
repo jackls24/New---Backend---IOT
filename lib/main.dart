@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_3/advertising_services.dart';
 import 'main_screen.dart';
 import 'auth_service.dart';
 import 'login_screen.dart';
@@ -9,10 +10,15 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _cognitoManager = CognitoManager();
   await _cognitoManager.init();
+  _initAdvertising();
 
   runApp(const MyApp());
+}
 
-
+void _initAdvertising() async {
+  await AdvertisingServices.initialize();
+  await AdvertisingServices.addServices();
+  await AdvertisingServices.startAdvertising(localName: "localName");
 }
 
 class MyApp extends StatelessWidget {
