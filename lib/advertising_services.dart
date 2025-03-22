@@ -3,6 +3,10 @@ import 'dart:typed_data';
 import 'package:ble_peripheral/ble_peripheral.dart';
 
 class AdvertisingServices {
+  static const String serviceID = "0000180F-0000-1000-8000-00805F9B34FB";
+  static const String characteristicBatteryLevel =
+      "00002A19-0000-1000-8000-00805F9B34FB";
+
   static final ManufacturerData manufacturerData = ManufacturerData(
     manufacturerId: 0x012D,
     data: Uint8List.fromList([
@@ -26,10 +30,6 @@ class AdvertisingServices {
     ]),
   );
 
-  static const String serviceBattery = "0000180F-0000-1000-8000-00805F9B34FB";
-  static const String characteristicBatteryLevel =
-      "00002A19-0000-1000-8000-00805F9B34FB";
-
   /// Inizializza il plugin BLE
   static Future<void> initialize() async {
     try {
@@ -46,7 +46,7 @@ class AdvertisingServices {
       // Aggiunge il Battery Service
       await BlePeripheral.addService(
         BleService(
-          uuid: serviceBattery,
+          uuid: serviceID,
           primary: true,
           characteristics: [
             BleCharacteristic(
@@ -83,7 +83,7 @@ class AdvertisingServices {
   static Future<void> startAdvertising({required String localName}) async {
     try {
       await BlePeripheral.startAdvertising(
-        services: [serviceBattery],
+        services: [serviceID],
         localName: localName,
         // manufacturerData: manufacturerData,
         addManufacturerDataInScanResponse: true,

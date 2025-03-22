@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
-  
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController     = TextEditingController();
-  final _passwordController  = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _firstNameController = TextEditingController();
-  final _lastNameController  = TextEditingController();
+  final _lastNameController = TextEditingController();
   late final CognitoManager _cognitoManager;
   bool _isLogin = true;
 
@@ -55,7 +54,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showEmailVerificationDialog(String email) {
-    final TextEditingController confirmationCodeController = TextEditingController();
+    final TextEditingController confirmationCodeController =
+        TextEditingController();
     showDialog(
       context: context,
       builder: (context) {
@@ -72,15 +72,22 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: () async {
                 final code = confirmationCodeController.text;
                 try {
-                  bool confirmed = await _cognitoManager.confirmUser(email, code);
+                  bool confirmed = await _cognitoManager.confirmUser(
+                    email,
+                    code,
+                  );
                   if (confirmed) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Email verificata con successo!"))
+                      const SnackBar(
+                        content: Text("Email verificata con successo!"),
+                      ),
                     );
                     Navigator.of(context).pop();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Errore nella verifica dell'email"))
+                      const SnackBar(
+                        content: Text("Errore nella verifica dell'email"),
+                      ),
                     );
                   }
                 } catch (e) {
@@ -102,11 +109,11 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _signUp() async {
-    final email     = _emailController.text;
-    final password  = _passwordController.text;
+    final email = _emailController.text;
+    final password = _passwordController.text;
     final firstName = _firstNameController.text;
-    final lastName  = _lastNameController.text;
-    
+    final lastName = _lastNameController.text;
+
     try {
       await _cognitoManager.signUp(email, password, firstName, lastName);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,14 +130,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _signIn() async {
-    final email    = _emailController.text;
+    final email = _emailController.text;
     final password = _passwordController.text;
-    
+
     try {
       final user = await _cognitoManager.signIn(email, password);
       print("User signed in: ${user.toString()}");
       print("User claims: ${user.claims.toString()}");
-        
+
       Navigator.pushReplacementNamed(context, '/main');
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -140,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on CognitoServiceException catch (e) {
       // Se l'errore contiene "Confirmation" mostra il dialog per la verifica,
       // altrimenti mostra il pop-up di errore.
-      if (e.message.contains("Confirmation") || 
+      if (e.message.contains("Confirmation") ||
           e.message.contains("not confirmed")) {
         _showEmailVerificationDialog(email);
       } else {
@@ -232,7 +239,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 48.0, vertical: 12.0,
+                          horizontal: 48.0,
+                          vertical: 12.0,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24.0),
@@ -264,4 +272,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
