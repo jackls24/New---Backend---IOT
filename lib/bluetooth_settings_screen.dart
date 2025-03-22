@@ -5,6 +5,7 @@ import 'configuration_form.dart'; // Importa ConfigurationForm
 import 'constant.dart';
 import 'models/boat_info.dart'; // Importa BoatInfo
 import 'dart:async'; // Importa Timer
+import 'advertising_services.dart'; // Importa AdvertisingServices
 
 class BluetoothSettingsScreen extends StatefulWidget {
   const BluetoothSettingsScreen({super.key});
@@ -26,21 +27,12 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
   void initState() {
     super.initState();
     BluetoothServices.getBluetoothStatus();
-    _startAutoConnectTimer();
+    print("Service ID: ${AdvertisingServices.serviceID}"); // Utilizza serviceID
   }
 
   @override
   void dispose() {
-    _stopAutoConnectTimer();
     super.dispose();
-  }
-
-  void _startAutoConnectTimer() {
-    _autoConnectTimer?.cancel();
-    _autoConnectTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      print("----------autoConnectToSavedDevice-----------");
-      //BluetoothServices.autoConnectToSavedDevice();
-    });
   }
 
   void _stopAutoConnectTimer() {
@@ -66,16 +58,18 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
   }
 
   void _stopScan() {
-    BluetoothServices.stopScan().then((_) {
-      setState(() {
-        _isScanning = false;
-      });
-    }).catchError((error) {
-      setState(() {
-        _isScanning = false;
-      });
-      print("Errore durante l'arresto della scansione: $error");
-    });
+    BluetoothServices.stopScan()
+        .then((_) {
+          setState(() {
+            _isScanning = false;
+          });
+        })
+        .catchError((error) {
+          setState(() {
+            _isScanning = false;
+          });
+          print("Errore durante l'arresto della scansione: $error");
+        });
   }
 
   void getInfo() {
@@ -84,49 +78,54 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => ConfigurationForm(
-            deviceMac: _connectedDevice?.remoteId.toString() ?? '',
-          ),
+          builder:
+              (context) => ConfigurationForm(
+                deviceMac: _connectedDevice?.remoteId.toString() ?? '',
+              ),
         ),
       );
     });
   }
 
   void _connectToDevice(BluetoothDevice device) {
-    BluetoothServices.connectToDevice(device).then((isConnected) {
-      if (isConnected) {
-        BluetoothServices.subscribeToCharacteristic();
-        getInfo();
-      }
-      setState(() {
-        _connectedDevice = isConnected ? device : null;
-      });
-    }).catchError((error) {
-      setState(() {
-        _connectedDevice = null;
-        _scanResults = [];
-        _isConnected = false;
-      });
-      _stopScan();
-      _startScan();
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Errore di connessione'),
-            content: Text('Si è verificato un errore durante la connessione: $error'),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('OK'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
+    BluetoothServices.connectToDevice(device)
+        .then((isConnected) {
+          if (isConnected) {
+            BluetoothServices.subscribeToCharacteristic();
+            getInfo();
+          }
+          setState(() {
+            _connectedDevice = isConnected ? device : null;
+          });
+        })
+        .catchError((error) {
+          setState(() {
+            _connectedDevice = null;
+            _scanResults = [];
+            _isConnected = false;
+          });
+          _stopScan();
+          _startScan();
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Errore di connessione'),
+                content: Text(
+                  'Si è verificato un errore durante la connessione: $error',
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text('OK'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              );
+            },
           );
-        },
-      );
-    });
+        });
   }
 
   void _disconnectDevice() {
@@ -140,9 +139,10 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
   // Creazione di una Card personalizzata per visualizzare il dispositivo
   Widget _buildDeviceCard(ScanResult result) {
     final BluetoothDevice device = result.device;
-    String deviceName = result.advertisementData.localName.isNotEmpty
-        ? result.advertisementData.localName
-        : device.platformName ?? 'Dispositivo sconosciuto';
+    String deviceName =
+        result.advertisementData.localName.isNotEmpty
+            ? result.advertisementData.localName
+            : device.platformName ?? 'Dispositivo sconosciuto';
 
     // Se il dispositivo non ha un nome, non lo visualizziamo
     if (deviceName.isEmpty) return const SizedBox();
@@ -151,11 +151,15 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
 
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: ListTile(
+        onTap:
+            isConnected
+                ? () {
+                  getInfo();
+                }
+                : null,
         leading: Icon(
           Icons.bluetooth,
           color: isConnected ? Colors.green : Colors.blueAccent,
@@ -172,7 +176,8 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
               borderRadius: BorderRadius.circular(24.0),
             ),
           ),
-          onPressed: isConnected ? _disconnectDevice : () => _connectToDevice(device),
+          onPressed:
+              isConnected ? _disconnectDevice : () => _connectToDevice(device),
           child: Text(isConnected ? 'Disconnetti' : 'Connetti'),
         ),
       ),
@@ -243,14 +248,10 @@ class _BluetoothSettingsScreenState extends State<BluetoothSettingsScreen> {
               child: FloatingActionButton(
                 backgroundColor: Colors.white70,
                 onPressed: _isScanning ? _stopScan : _startScan,
-                child: _isScanning
-                    ? const CircularProgressIndicator(
-                        color: Colors.blue,
-                      )
-                    : const Icon(
-                        Icons.refresh,
-                        color: Colors.blue,
-                      ),
+                child:
+                    _isScanning
+                        ? const CircularProgressIndicator(color: Colors.blue)
+                        : const Icon(Icons.refresh, color: Colors.blue),
               ),
             ),
           ],

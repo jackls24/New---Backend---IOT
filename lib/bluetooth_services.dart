@@ -7,8 +7,6 @@ import 'dart:convert';
 import 'bluetooth_message_type.dart';
 import 'models/boat_info.dart'; // Importa BoatInfo
 import 'package:flutter/foundation.dart'; // Importa ValueNotifier
-import 'package:shared_preferences/shared_preferences.dart'; // Importa SharedPreferences
-import 'dart:io'; // Importa File
 
 class BluetoothServices {
   // Singleton instance
@@ -70,6 +68,7 @@ class BluetoothServices {
     for (BluetoothService service in services) {
       for (BluetoothCharacteristic characteristic in service.characteristics) {
         if (characteristic.uuid.toString() == UUID_CARATTERISTIC) {
+          print("_targetCharacteristic settato");
           _targetCharacteristic = characteristic;
           break;
         }
@@ -81,31 +80,26 @@ class BluetoothServices {
     if (_targetCharacteristic == null || !_isConnected) {
       return {};
     }
-    try {
-      List<int> value = await _targetCharacteristic!.read();
-      String jsonString = utf8.decode(value);
+    List<int> value = await _targetCharacteristic!.read();
+    String jsonString = utf8.decode(value);
 
+    try {
       Map<String, dynamic> jsonResponse = jsonDecode(jsonString);
       return jsonResponse;
     } catch (e) {
       print("Errore durante la decodifica del JSON: $e");
-      return {"type": "UNKNOWN", "message": e.toString()};
+      return {"type": "UNKNOWN", "message": jsonString};
     }
   }
 
-  static Future<bool> writeCharacteristic(String jsonString) async {
-    try {
-      if (_targetCharacteristic == null || !_isConnected) {
-        return false;
-      }
-
-      List<int> value = utf8.encode(jsonString);
-      await _targetCharacteristic!.write(value);
-      return true;
-    } catch (e) {
-      print("Errore durante la scrittura del JSON: $e");
-      return false;
+  static Future<void> writeCharacteristic(String jsonString) async {
+    if (_targetCharacteristic == null) {
+      return;
     }
+
+    List<int> value = utf8.encode(jsonString);
+    print("writeCharacteristic write: $jsonString");
+    await _targetCharacteristic!.write(value);
   }
 
   static Future<void> sendConnectionRequest() async {
@@ -120,37 +114,6 @@ class BluetoothServices {
     return false;
   }
 
-  static Future<void> saveConnectedDevice(BluetoothDevice device) async {
-    try {
-      final file = File('/Users/giacomo/Documents/flutter_application_3/remoteId.txt');
-      await file.writeAsString(device.remoteId.toString());
-      print("saveConnectedDevice: Saved: ${device.remoteId.toString()}");
-    } catch (e) {
-      print("Errore durante il salvataggio del dispositivo connesso: $e");
-    }
-  }
-
-  static Future<BluetoothDevice?> getSavedConnectedDevice() async {
-    try {
-      final file = File('/Users/giacomo/Documents/flutter_application_3/remoteId.txt');
-      if (await file.exists()) {
-        final remoteId = await file.readAsString();
-        return BluetoothDevice.fromId(remoteId);
-      }
-    } catch (e) {
-      print("Errore durante il recupero del dispositivo connesso: $e");
-    }
-    return null;
-  }
-
-  static Future<void> autoConnectToSavedDevice() async {
-    BluetoothDevice? device = await getSavedConnectedDevice();
-    print("autoConnectToSavedDevice device: $device");
-    if (device != null) {
-      await autoConnectToDevice(device);
-    }
-  }
-
   static Future<bool> connectToDevice(BluetoothDevice device) async {
     int attempt = 0;
 
@@ -162,7 +125,6 @@ class BluetoothServices {
         await sendConnectionRequest();
         await confirmConnection();
         onConnectionStateChanged(device);
-        await saveConnectedDevice(device); // Salva il dispositivo connesso
       } catch (e) {
         await device.disconnect();
         print("Errore durante la connessione: $e");
@@ -175,23 +137,6 @@ class BluetoothServices {
     }
 
     return _isConnected;
-  }
-
-  static Future<void> autoConnectToDevice(BluetoothDevice device) async {
-    try {
-      await device.connect(autoConnect: true, mtu: null);
-      await device.connectionState
-          .where((val) => val == BluetoothConnectionState.connected)
-          .first;
-      await getServices(device);
-      await sendConnectionRequest();
-      await confirmConnection();
-      onConnectionStateChanged(device);
-    } catch (e) {
-      await device.disconnect();
-      print("Errore durante la auto connessione: $e");
-      throw Exception("Errore durante la auto connessione: $e");
-    }
   }
 
   static Future<bool> disconnectDevice() async {
@@ -215,7 +160,10 @@ class BluetoothServices {
           print("Dispositivo connesso: ${device.name}");
           break;
         case BluetoothConnectionState.disconnected:
+          _isConnected = false;
+          _connectedDevice = null;
           isConnectedNotifier.value = false;
+          _isVirtualConnected = false;
           print("Dispositivo disconnesso: ${device.name}");
           break;
         case BluetoothConnectionState.connecting:
@@ -268,7 +216,6 @@ class BluetoothServices {
     }
 
     if (jsonResponse.containsKey("data")) {
-      print("BoatInfo :$jsonResponse");
       return BoatInfo.fromJson(jsonResponse["data"]);
     }
 
@@ -280,6 +227,19 @@ class BluetoothServices {
     print("info: $info");
     String jsonString = jsonEncode({"type": "SEND_INFO", "data": info});
     print("sendInfo: $jsonString");
+    await writeCharacteristic(jsonString);
+  }
+
+  static Future<void> sendSetPosition(double lat, double long) async {
+    if (!_isVirtualConnected) {
+      return;
+    }
+
+    String jsonString = jsonEncode({
+      "type": "SET_POSITION",
+      "data": {"lat": lat, "long": long},
+    });
+    print("Invio messaggio SET_POSITION: $jsonString");
     await writeCharacteristic(jsonString);
   }
 
