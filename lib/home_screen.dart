@@ -2,66 +2,95 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'location_service.dart';
 import 'package:location/location.dart';
+import 'package:geolocator/geolocator.dart';
 import 'bluetooth_services.dart';
 import 'models/boat_info.dart';
 import 'auth_service.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-  
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   GoogleMapController? _controller;
-  LocationData? _currentLocation;
-  final LocationService _locationService = LocationService();
+  Position? _currentLocation;
   BoatInfo? _boatInfo;
   bool _isConnected = false;
-  String username="";
-
+  String username = "";
+  Timer? _positionTimer;
 
   @override
   void initState() {
     super.initState();
     print("InitState HomeScreen");
-    // Controllo se l'utente è autenticato: se non lo è, ritorno a Login
+
+    _checkAuthentication();
+    _initListeners();
+
+    _positionTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      _updatePosition();
+    });
+
+    _updateLocation();
+  }
+
+  // Verifica autenticazione e aggiorna username
+  void _checkAuthentication() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (CognitoManager.currentUser == null) {
         Navigator.pushReplacementNamed(context, '/');
+      } else {
+        setState(() {
+          username = CognitoManager.currentUser?.givenName ?? "Utente";
+        });
       }
-      username = CognitoManager.currentUser?.givenName ?? "Utente";
-
     });
+  }
 
-    _getCurrentLocation();
+  void _initListeners() {
     BluetoothServices.isConnectedNotifier.addListener(_onDeviceConnected);
     BluetoothServices.isConnectedNotifier.addListener(_onDeviceDisconnected);
   }
 
-  @override
-  void dispose() {
-    BluetoothServices.isConnectedNotifier.removeListener(_onDeviceConnected);
-    BluetoothServices.isConnectedNotifier.removeListener(_onDeviceDisconnected);
-    super.dispose();
-  }
-
-  Future<void> _getCurrentLocation() async {
-    final locationData = await _locationService.getCurrentLocation();
+  // Aggiorna la posizione corrente
+  Future<void> _updateLocation() async {
+    final locationData = await _getCurrentLocation();
     setState(() {
       _currentLocation = locationData;
     });
   }
 
-  Future<void> _getBoatInfo() async {
-    if (!BluetoothServices.isConnected) {
-      return;
+  // Ritorna la posizione attuale
+  Future<Position?> _getCurrentLocation() async {
+    return await LocationService.getCurrentLocation();
+  }
+
+  // Invia la posizione corrente
+  Future<void> _updatePosition() async {
+    print("_updatePosition");
+    final localPosition = await _getCurrentLocation();
+    print("localPosition: $localPosition");
+
+    if (localPosition != null) {
+      BluetoothServices.sendSetPosition(
+        localPosition.latitude!,
+        localPosition.longitude!,
+      );
     }
+  }
+
+  Future<void> _getBoatInfo() async {
+    if (!BluetoothServices.isConnected) return;
     final boatInfo = await BluetoothServices.requestInfo();
-    setState(() {
-      _boatInfo = boatInfo;
-    });
+    if (mounted) {
+      setState(() {
+        _boatInfo = boatInfo;
+      });
+    }
   }
 
   void _onDeviceConnected() {
@@ -80,13 +109,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _logout() {
-    //CognitoManager.signOut();
     CognitoManager.currentUser = null;
     Navigator.pushReplacementNamed(context, '/');
   }
 
-  // Widget per visualizzare lo stato (connesso/non connesso)
-  Widget statusIndicator(String label, bool connected) {
+  @override
+  void dispose() {
+    _positionTimer?.cancel();
+    BluetoothServices.isConnectedNotifier.removeListener(_onDeviceConnected);
+    BluetoothServices.isConnectedNotifier.removeListener(_onDeviceDisconnected);
+    super.dispose();
+  }
+
+  Widget _buildStatusIndicator(String label, bool connected) {
     return Row(
       children: [
         Text(
@@ -110,6 +145,141 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.directions_boat, color: Colors.white, size: 28),
+              SizedBox(width: 8),
+              Text(
+                'Home',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Benvenuto, $username',
+                style: const TextStyle(color: Colors.white70, fontSize: 18),
+              ),
+              TextButton.icon(
+                onPressed: _logout,
+                icon: const Icon(Icons.logout, color: Colors.white70),
+                label: const Text(
+                  'Logout',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapCard() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Card(
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0),
+        ),
+        child: SizedBox(
+          height: 300,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16.0),
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: LatLng(
+                  _currentLocation!.latitude!,
+                  _currentLocation!.longitude!,
+                ),
+                zoom: 15,
+              ),
+              onMapCreated: (controller) {
+                _controller = controller;
+              },
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBoatInfoCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Targa: ${_boatInfo!.targa}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Nome Dispositivo: ${_boatInfo!.dispName}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    return _currentLocation == null
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildMapCard(),
+              if (BluetoothServices.isConnected && _boatInfo != null)
+                _buildBoatInfoCard(),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildStatusIndicator('Stato Barca', _isConnected),
+                    const SizedBox(width: 24),
+                    _buildStatusIndicator('Connesso', _isConnected),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -123,138 +293,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: SafeArea(
           child: Column(
-            children: [
-              // Header custom con icona, titolo, nome utente e pulsante Logout
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.directions_boat, color: Colors.white, size: 28),
-                        SizedBox(width: 8),
-                        Text(
-                          'Home',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Benvenuto, $username',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 18,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _logout,
-                          icon: const Icon(Icons.logout, color: Colors.white70),
-                          label: const Text(
-                            'Logout',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _currentLocation == null 
-                    ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            // Card per Google Maps con bordo arrotondato
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Card(
-                                elevation: 6,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16.0),
-                                ),
-                                child: SizedBox(
-                                  height: 300,
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(16.0),
-                                    child: GoogleMap(
-                                      initialCameraPosition: CameraPosition(
-                                        target: LatLng(
-                                          _currentLocation!.latitude!,
-                                          _currentLocation!.longitude!,
-                                        ),
-                                        zoom: 15,
-                                      ),
-                                      onMapCreated: (controller) {
-                                        _controller = controller;
-                                      },
-                                      myLocationEnabled: true,
-                                      myLocationButtonEnabled: true,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Card per le informazioni della barca (se connesso)
-                            if (BluetoothServices.isConnected && _boatInfo != null)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                                child: Card(
-                                  elevation: 4,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16.0),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Targa: ${_boatInfo!.targa}',
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Nome Dispositivo: ${_boatInfo!.dispName}',
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            // Indicatori di stato
-                            Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  statusIndicator('Stato Barca', _isConnected),
-                                  const SizedBox(width: 24),
-                                  statusIndicator('Connesso', _isConnected),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-              ),
-            ],
+            children: [_buildHeader(), Expanded(child: _buildBody())],
           ),
         ),
       ),

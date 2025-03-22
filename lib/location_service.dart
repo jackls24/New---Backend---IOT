@@ -1,56 +1,41 @@
-import 'package:location/location.dart';
+import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 
 class LocationService {
-  final Location _location = Location();
-
-  Future<bool?> getPermission() async {
-    try {
-      bool serviceEnabled;
-      PermissionStatus permissionGranted;
-
-      serviceEnabled = await _location.serviceEnabled();
-      if (!serviceEnabled) {
-        serviceEnabled = await _location.requestService();
-        if (!serviceEnabled) {
-          //ScaffoldMessenger.of(context).showSnackBar(
-          // SnackBar(content: Text('Permesso di localizzazione non concesso')),
-          //);
-
-          return false;
-        }
-      }
-
-      // Controlla se l'app ha il permesso di accedere alla posizione
-      permissionGranted = await _location.hasPermission();
-
-      if (permissionGranted == PermissionStatus.denied ||
-          permissionGranted == PermissionStatus.deniedForever) {
-        permissionGranted = await _location.requestPermission();
-
-        if (permissionGranted != PermissionStatus.granted) {
-          return false;
-        }
-      }
-      return true;
-    } catch (e) {
-      print('Errore durante l\'ottenimento della posizione: $e');
-      return false;
-    }
-  }
-
-  Future<LocationData?> getCurrentLocation() async {
-    try {
-      bool? permission = await getPermission();
-
-      if (permission == false) {
-        return null;
-      }
-
-      return await _location.getLocation();
-    } catch (e) {
-      print("Errore durante l'ottenimento della posizione: $e");
-
+  static Future<Position?> getCurrentLocation({int retries = 3}) async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      print("Location service is disabled.");
       return null;
     }
+
+    try {
+      /* final result = await Geolocator.getLastKnownPosition(
+        forceAndroidLocationManager: true,
+      );
+
+      if (result != null) {
+        print('Last known location: $result');
+        return result;
+      }
+      */
+
+      final position = await Geolocator.getCurrentPosition().timeout(
+        Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException("Location request timed out.");
+        },
+      );
+      return position;
+    } catch (e) {
+      print("Error getting location: $e");
+      print("Location request failed, retrying... ($retries retries left)");
+      await Future.delayed(Duration(seconds: 2));
+      if (retries > 0) {
+        return getCurrentLocation(retries: retries - 1);
+      }
+    }
+
+    return null;
   }
 }
