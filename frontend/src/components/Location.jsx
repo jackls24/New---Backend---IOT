@@ -57,6 +57,7 @@ const Location = () => {
         latitude: boatData.latitudine,
         longitude: boatData.longitudine,
         timestamp: boatData.ultima_rilevazione,
+        molo_id: boatData.molo_id,
       };
 
       setLocation(locationData);
@@ -478,7 +479,7 @@ const Location = () => {
           </div>
         </motion.div>
       </motion.div>
-      <Plotter></Plotter>
+      <Plotter boatId={boatId} moloId={location?.molo_id}></Plotter>
     </div>
   );
 };

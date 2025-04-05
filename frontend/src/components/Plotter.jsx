@@ -6,6 +6,7 @@ import {
   Map,
   Layers,
   ChevronsUp,
+  AlertCircle,
 } from "lucide-react";
 import Chart from "chart.js/auto";
 import annotationPlugin from "chartjs-plugin-annotation";
@@ -35,16 +36,65 @@ L.Marker.prototype.options.icon = DefaultIcon;
 // Registra il plugin per le annotazioni
 Chart.register(annotationPlugin);
 
-const Plotter = ({ boatId }) => {
+const Plotter = ({ boatId, moloId }) => {
+  console.log("Boat ID:", boatId);
+  console.log("Molo ID:", moloId);
+
   // Stati per gestire i dati e l'UI
   const [coordinates, setCoordinates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showMap, setShowMap] = useState(true);
+  const [molo, setMolo] = useState(null);
+  const [moloLoading, setMoloLoading] = useState(true);
+  const [moloError, setMoloError] = useState(null);
 
   // Riferimenti per il grafico
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+
+  // Carica i dati del molo
+  useEffect(() => {
+    const fetchMoloData = async () => {
+      if (!moloId) {
+        setMoloLoading(false);
+        setMoloError("ID del molo non specificato");
+        return;
+      }
+
+      try {
+        setMoloLoading(true);
+        setMoloError(null);
+
+        const response = await fetch(`http://localhost:5001/molo/${moloId}`);
+
+        if (!response.ok) {
+          throw new Error(
+            `Errore nel caricamento dei dati del molo: ${response.statusText}`
+          );
+        }
+
+        const data = await response.json();
+
+        console.log(data);
+        // Verifica esplicita per le coordinate
+        if (!data || !data.latitudine || !data.longitudine) {
+          setMoloError("Coordinate geografiche del molo non disponibili");
+          setMoloLoading(false);
+          return;
+        }
+
+        setMolo(data);
+        setMoloLoading(false);
+      } catch (err) {
+        console.error("Errore nel recupero dei dati del molo:", err);
+        setMoloError(`Impossibile recuperare i dati del molo: ${err.message}`);
+        setMoloLoading(false);
+      }
+    };
+
+    fetchMoloData();
+  }, [moloId]);
 
   // Carica i dati delle coordinate
   useEffect(() => {
@@ -67,27 +117,6 @@ const Plotter = ({ boatId }) => {
 
         const coordGeo2 = convertToGeographicCoordinates(simulatedCoordinates);
 
-        console.log("Coordinate geografiche:", coordGeo2);
-
-        /* VERSIONE 1 
-        const formattedData = simulatedCoordinates.map((point, index) => {
-          // Converti le coordinate cartesiane in geografiche
-          const coordGeo = convertiCoordinateCartesianeInGeografiche(
-            point.x,
-            point.y
-          );
-          return {
-            x: point.x, // Manteniamo le coordinate cartesiane originali
-            y: point.y,
-            geoX: coordGeo.lon, // Aggiungiamo le coordinate geografiche
-            geoY: coordGeo.lat,
-            timestamp: point.timestamp,
-            name: `Punto ${index + 1}`,
-          };
-        });
-
-        */
-
         //Versione 2
         const formattedData = coordGeo2.map((point) => {
           return {
@@ -95,6 +124,7 @@ const Plotter = ({ boatId }) => {
             geoY: point.lat,
             x: point.x,
             y: point.y,
+            timestamp: point.timestamp,
           };
         });
 
@@ -108,12 +138,12 @@ const Plotter = ({ boatId }) => {
     };
 
     fetchCoordinates();
-  }, [boatId]);
+  }, [boatId, moloLoading, moloError]);
 
   const convertToGeographicCoordinates = (cartesianCoords) => {
     const origin = {
-      lat: 37.512988,
-      lng: 15.106013,
+      lat: molo?.latitudine,
+      lng: molo?.longitudine,
     };
 
     const scale = {
@@ -132,18 +162,14 @@ const Plotter = ({ boatId }) => {
     });
   };
 
+  /*
   const convertiCoordinateCartesianeInGeografiche = (x, y) => {
-    // Il porto è l'origine (0,0) nel sistema cartesiano
-    // latPorto e lonPorto sono le coordinate geografiche reali del porto
+    const latPorto = molo?.latitudine;
+    const lonPorto = molo?.longitudine;
 
     // Fattore di conversione: approssimazione della distanza in km per 1 grado
-    // 111.32 km per 1 grado di latitudine (costante approssimata)
-    // Per la longitudine dipende dalla latitudine: 111.32 * cos(latitudine in radianti)
     const kmPerGradoLat = 111.32;
     const kmPerGradoLon = 111.32 * Math.cos((latPorto * Math.PI) / 180);
-
-    // Assumendo che x e y siano espressi in km
-    // Se sono in un'altra unità, aggiusta i fattori di conversione
 
     // Calcolo della nuova latitudine e longitudine
     const nuovaLat = latPorto + y / kmPerGradoLat;
@@ -154,9 +180,6 @@ const Plotter = ({ boatId }) => {
       lon: nuovaLon,
     };
   };
-
-  const latPorto = 37.512988;
-  const lonPorto = 15.106013;
 
   const calcolaPuntoArrivo = (options = {}) => {
     if (coordinates.length < 2) return null;
@@ -200,6 +223,10 @@ const Plotter = ({ boatId }) => {
   };
 
   const puntoArrivo = calcolaPuntoArrivo({ fattoreProiezione: 1 });
+
+  */
+
+  const puntoArrivo = 0;
 
   useEffect(() => {
     if (coordinates.length === 0 || !chartRef.current) return;
@@ -419,6 +446,29 @@ const Plotter = ({ boatId }) => {
     };
   }, [coordinates, puntoArrivo]);
 
+  if (moloLoading) {
+    return (
+      <div className="flex justify-center items-center h-64 bg-white rounded-xl shadow-md">
+        <div className="rounded-full h-16 w-16 border-4 border-blue-300 border-t-blue-600 animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (moloError) {
+    return (
+      <div className="bg-white rounded-xl shadow-md p-6 text-center">
+        <div className="text-red-500 mb-4">
+          <AlertCircle size={40} className="mx-auto" />
+        </div>
+        <p className="text-gray-700">{moloError}</p>
+        <p className="text-sm text-gray-500 mt-2">
+          La visualizzazione della posizione richiede coordinate geografiche
+          valide.
+        </p>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 bg-white rounded-xl shadow-md">
@@ -474,7 +524,7 @@ const Plotter = ({ boatId }) => {
       <div className="bg-gradient-to-r from-blue-700 to-blue-800 p-4 border-b border-blue-600">
         <h2 className="text-xl font-semibold text-white flex items-center">
           <Anchor className="mr-2 text-white" size={20} />
-          Tracciamento Posizione
+          Tracciamento Posizione {molo && `- Molo: ${molo.nome}`}
         </h2>
       </div>
 
@@ -509,7 +559,7 @@ const Plotter = ({ boatId }) => {
             className="border border-blue-100 rounded-lg bg-blue-50 p-2"
           >
             <MapContainer
-              center={[latPorto, lonPorto]} // Inizia dal porto
+              center={[molo.latitudine, molo.longitudine]} // Inizia dal porto
               zoom={13}
               style={{ height: "100%", width: "100%" }}
             >
@@ -519,14 +569,17 @@ const Plotter = ({ boatId }) => {
               />
               {coordinates.length > 0 && (
                 <>
-                  <Marker position={[latPorto, lonPorto]} icon={portIcon}>
+                  <Marker
+                    position={[molo.latitudine, molo.longitudine]}
+                    icon={portIcon}
+                  >
                     <Popup>
                       <div className="p-2">
                         <h3 className="text-lg font-bold">Porto</h3>
                         <p>Punto di partenza (0,0)</p>
                         <p className="text-xs text-gray-500 mt-1">
-                          Lat: {latPorto.toFixed(6)}°, Long:{" "}
-                          {lonPorto.toFixed(6)}°
+                          Lat: {molo.latitudine.toFixed(6)}°, Long:{" "}
+                          {molo.longitudine.toFixed(6)}°
                         </p>
                       </div>
                     </Popup>
