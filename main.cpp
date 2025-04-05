@@ -4,8 +4,6 @@
 #include <WebServer.h>
 #include <esp_wifi.h>
 #include <Preferences.h>
-#include "EloquentTinyML.h"
-#include "ormeggio_etichettati.h"
 #include "LoRaMesh/LoRaMesh.h"
 #include "LoRaMesh/state_t.h"
 #include <BLEDevice.h>
@@ -13,16 +11,18 @@
 #include <BLEServer.h>
 #include <BLEAdvertisedDevice.h>
 #include <BLEScan.h>
-#include <ArduinoJson.h>
 #include "BLEUtils.h"
-#include "sensori.h"
-/*#include "lora_utils.h"*/
 #include "costants.h"
+#include "LoRaMesh/state_t.h"
+#include "BackendService.h"
 
 char targa_gabbiotto[7];
 
 // Callback per la ricezione del messaggio LoRaMesh
 void onReceive(LoRaMesh_message_t);
+
+Preferences preferences;
+BackendService backendService;
 
 // credenziali WiFi
 String ssid = "";
@@ -97,109 +97,6 @@ void aggiungiCredenziali()
     }
 }
 
-void aggiungiBarca()
-{
-    if (server.hasArg("nome_proprietario") && server.hasArg("numero_telefonico") && server.hasArg("indirizzo_lora"))
-    {
-        String nomeProprietario = server.arg("nome_proprietario");
-        String numeroTelefonico = server.arg("numero_telefonico");
-        String indirizzoLora = server.arg("indirizzo_lora");
-
-        // Apri le preferenze in modalità scrittura
-        preferences.begin("barcheDB", false);
-
-        // Ottieni l'indice attuale delle barche
-        int count = preferences.getInt("barche_count", 0);
-
-        // Costruisci una stringa con i dati della barca
-        String barcaData = nomeProprietario + "," + numeroTelefonico + "," + indirizzoLora;
-
-        // Salva la barca con una chiave unica
-        String key = "barca_" + String(count);
-        preferences.putString(key.c_str(), barcaData);
-
-        // Incrementa il contatore delle barche
-        preferences.putInt("barche_count", count + 1);
-
-        // Chiudi le preferenze
-        preferences.end();
-
-        // Risposta al client
-        server.send(200, "text/plain", "Barca aggiunta con successo!");
-    }
-    else
-    {
-        server.send(400, "text/plain", "Errore: dati mancanti!");
-    }
-}
-
-void getBarche()
-{
-    String response = "";
-
-    preferences.begin("barcheDB", true);
-    int count = preferences.getInt("barche_count", 0);
-
-    for (int i = 0; i < count; i++)
-    {
-        String key = "barca_" + String(i);
-        String barca = preferences.getString(key.c_str(), "");
-
-        if (barca != "")
-        {
-            // Divide i dati salvati come "nome,telefono,indirizzo"
-            int firstComma = barca.indexOf(',');
-            int secondComma = barca.lastIndexOf(',');
-
-            String nome = barca.substring(0, firstComma);
-            String telefono = barca.substring(firstComma + 1, secondComma);
-            String indirizzo = barca.substring(secondComma + 1);
-
-            // Costruisce la risposta includendo l'ID
-            response += String(i) + " " + nome + " " + telefono + " " + indirizzo + "\n";
-        }
-    }
-
-    preferences.end();
-
-    server.send(200, "text/plain", response);
-}
-
-void eliminaBarca()
-{
-    if (!server.hasArg("id"))
-    {
-        server.send(400, "text/plain", "Errore: ID mancante!");
-        return;
-    }
-
-    int id = server.arg("id").toInt();
-
-    preferences.begin("barcheDB", false);
-    int count = preferences.getInt("barche_count", 0);
-
-    if (id < 0 || id >= count)
-    {
-        preferences.end();
-        server.send(400, "text/plain", "Errore: ID non valido!");
-        return;
-    }
-
-    // Shift delle barche per riempire lo spazio dell'elemento eliminato
-    for (int i = id; i < count - 1; i++)
-    {
-        String nextBarca = preferences.getString(("barca_" + String(i + 1)).c_str(), "");
-        preferences.putString(("barca_" + String(i)).c_str(), nextBarca);
-    }
-
-    // Rimuove l'ultima barca ormai duplicata
-    preferences.remove(("barca_" + String(count - 1)).c_str());
-    preferences.putInt("barche_count", count - 1);
-    preferences.end();
-
-    server.send(200, "text/plain", "Barca eliminata con successo!");
-}
-
 void setup()
 {
     Serial.begin(115200);
@@ -253,9 +150,6 @@ void setup()
     }
 
     server.on("/", handleRoot);
-    server.on("/barca", aggiungiBarca);
-    server.on("/barche", getBarche);
-    server.on("/eliminaBarca", eliminaBarca);
     server.on("/wifi", aggiungiCredenziali);
     server.begin();
 }
@@ -263,7 +157,6 @@ void setup()
 void loop()
 {
     LoRaMesh::update();
-
     server.handleClient();
 }
 
@@ -277,4 +170,27 @@ void onReceive(LoRaMesh_message_t message)
     Serial.println("" + String(message.payload.pos_x));
     Serial.println("" + String(message.payload.pos_y));
     Serial.println("" + String(message.payload.stato == st_ormeggio ? "Ormeggiata" : "Rubata"));
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        bool success = backendService.sendMessageToBackend(message);
+        if (!success)
+        {
+            Serial.println("Errore nell'invio del messaggio al backend");
+        }
+
+        /*
+        static uint8_t last_state = 255;
+        if (last_state != message.payload.stato)
+        {
+            backendService.sendStateChangeNotification(message);
+            last_state = message.payload.stato;
+        }
+
+*/
+    }
+    else
+    {
+        Serial.println("Impossibile inviare dati: WiFi non connesso");
+    }
 }

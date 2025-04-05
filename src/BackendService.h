@@ -1,0 +1,21 @@
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include "LoRaMesh/LoRaMesh.h"
+
+class BackendService
+{
+private:
+    const String baseUrl = "http://192.168.0.118:5001";
+
+public:
+    BackendService();
+
+    // Invia i dati del messaggio LoRaMesh al backend
+    bool sendMessageToBackend(const LoRaMesh_message_t &message);
+
+    // Invia notifica per cambio stato (es. quando una barca viene rubata)
+    bool sendStateChangeNotification(const LoRaMesh_message_t &message);
+
+    // Invia aggiornamento posizione
+    bool sendPositionUpdate(const LoRaMesh_message_t &message);
+};

@@ -1,0 +1,133 @@
+#include <Arduino.h>
+#include <iot_board.h>
+#include <WiFi.h>
+#include <Preferences.h>
+#include "LoRaMesh/LoRaMesh.h"
+#include "LoRaMesh/state_t.h"
+#include "BackendService.h"
+
+// Dichiarazione oggetto Preferences
+Preferences preferences;
+
+// Dichiarazione del servizio backend
+BackendService backendService;
+
+// Configurazione WiFi
+const char *ssid = "S24 Ultra di giacomo";
+const char *password = "87654321";
+
+// Identificativo della barca/gabbiotto
+char targa_gabbiotto[7] = "GAB001";
+
+// Funzione per gestire i messaggi ricevuti
+void onReceive(LoRaMesh_message_t message);
+
+// Funzione per creare e inviare messaggi di test
+void inviaMessaggiTest()
+{
+    Serial.println("\n=== Invio messaggi di test al backend ===");
+
+    LoRaMesh_message_t messageOrmeggiata;
+
+    strncpy(messageOrmeggiata.targa_destinatario, "EM2023", 7);
+    strncpy(messageOrmeggiata.targa_mittente, "EM2023", 7);
+
+    messageOrmeggiata.message_id = 1001;
+    messageOrmeggiata.payload.stato = st_ormeggio;
+    messageOrmeggiata.payload.livello_batteria = 85;
+    messageOrmeggiata.payload.pos_x = 43.7102;
+    messageOrmeggiata.payload.pos_y = 10.4135;
+    messageOrmeggiata.payload.direzione = 45.5;
+
+    bool success;
+
+    Serial.println("Invio messaggio di barca ormeggiata...");
+    success = backendService.sendMessageToBackend(messageOrmeggiata);
+    Serial.println("Risultato invio: " + String(success ? "Successo" : "Fallimento"));
+
+    /*
+    Serial.println("Invio notifica cambio stato...");
+    success = backendService.sendStateChangeNotification(messageOrmeggiata);
+    Serial.println("Risultato invio notifica: " + String(success ? "Successo" : "Fallimento"));
+     */
+
+    Serial.println("=== Fine test invio messaggi ===\n");
+}
+
+void setup()
+{
+
+    // Inizializzazione della seriale
+    Serial.begin(115200);
+    Serial.println("\n\nTest comunicazione con backend");
+
+    // Connessione al WiFi
+    WiFi.begin(ssid, password);
+    Serial.print("Connessione al WiFi");
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+        Serial.print(".");
+    }
+    Serial.println("\nConnesso al WiFi!");
+    Serial.print("Indirizzo IP: ");
+    Serial.println(WiFi.localIP());
+
+    // Inizializzazione del LoRaMesh
+    LoRaMesh::init(targa_gabbiotto, onReceive);
+
+    // Test di invio di un messaggio al backend
+    inviaMessaggiTest();
+}
+
+void loop()
+{
+    // Aggiornamento del LoRaMesh per gestire i messaggi in arrivo
+    LoRaMesh::update();
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
+
+        static unsigned long lastSendTime = 0;
+        if (millis() - lastSendTime > 30000)
+        {
+            inviaMessaggiTest();
+            lastSendTime = millis();
+        }
+    }
+    else
+    {
+        Serial.println("Nessuna connesione a internet");
+    }
+
+    delay(10);
+}
+
+// Callback per la ricezione di messaggi
+void onReceive(LoRaMesh_message_t message)
+{
+    Serial.println("\n=== Messaggio LoRaMesh ricevuto ===");
+    Serial.println("Destinatario: " + String(message.targa_destinatario));
+    Serial.println("Mittente: " + String(message.targa_mittente));
+    Serial.println("ID messaggio: " + String(message.message_id));
+    Serial.println("Livello batteria: " + String(message.payload.livello_batteria) + "%");
+    Serial.println("Posizione: (" + String(message.payload.pos_x, 4) + ", " + String(message.payload.pos_y, 4) + ")");
+    Serial.println("Direzione: " + String(message.payload.direzione) + "°");
+    Serial.println("Stato: " + String(message.payload.stato == st_ormeggio ? "Ormeggiata" : "Rubata"));
+    Serial.println("===================================\n");
+
+    // Quando riceviamo un messaggio, lo inviamo al backend
+    if (WiFi.status() == WL_CONNECTED)
+    {
+        backendService.sendMessageToBackend(message);
+
+        // Se il messaggio indica uno stato "rubata", inviamo anche una notifica di cambio stato
+        if (message.payload.stato == st_rubata)
+        {
+            backendService.sendStateChangeNotification(message);
+        }
+
+        // Aggiorniamo comunque la posizione
+        backendService.sendPositionUpdate(message);
+    }
+}
