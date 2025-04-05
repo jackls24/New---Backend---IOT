@@ -701,7 +701,16 @@ video {
 .w-10 {
   width: 2.5rem;
 }
+.w-24
+{
+  width: 4rem;
 
+}
+
+.h-24
+{
+  height: 4rem;
+}
 .w-5 {
   width: 1.25rem;
 }
@@ -767,6 +776,8 @@ video {
 .justify-between {
   justify-content: space-between;
 }
+
+
 
 .space-x-6 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-x-reverse: 0;
