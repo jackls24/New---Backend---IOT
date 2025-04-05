@@ -17,8 +17,6 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "knex": "^3.1.0",
-    "lucide-react": "^0.484.0",
-    "react-native-safe-area-context": "^4.14.1",
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {

@@ -5,7 +5,7 @@ const cors = require('cors');
 const userRouter = require("./api/user");
 const boatRouter = require("./api/boat");
 const moloRouter = require("./api/molo");
-
+const locationRouter = require("./api/location");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -18,7 +18,7 @@ app.use(express.json());
 app.use("/users", userRouter);
 app.use("/boats", boatRouter);
 app.use("/molo", moloRouter);
-
+//app.use("/locations", locationRouter);
 
 
 

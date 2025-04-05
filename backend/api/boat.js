@@ -1,110 +1,152 @@
 const express = require("express");
 const router = express.Router();
-const db = require("../db");
+const knex = require("knex");
+const config = require("../../knexfile.js");
+
+// Inizializza knex
+const db = knex(config.development);
 
 /**
  * 📌 Recupera tutte le barche (opzionalmente filtrate per molo_id)
  */
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
     const { molo_id } = req.query;
-    let query = "SELECT * FROM boats";
-    const params = [];
-    if (molo_id) {
-        query += " WHERE molo_id = ?";
-        params.push(molo_id);
-    }
-    db.all(query, params, (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
+
+    try {
+        let query = db("boats").select("*");
+
+        if (molo_id) {
+            query = query.where({ molo_id });
         }
-        res.json(rows);
-    });
+
+        const boats = await query;
+        res.json(boats);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 /**
  * 📌 Recupera una barca specifica per ID
  */
-router.get("/:id", (req, res) => {
-    db.get("SELECT * FROM boats WHERE id = ?", [req.params.id], (err, row) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (!row) {
+router.get("/:id", async (req, res) => {
+    try {
+        const boat = await db("boats").where({ id: req.params.id }).first();
+
+        if (!boat) {
             return res.status(404).json({ error: "Barca non trovata" });
         }
-        res.json(row);
-    });
+
+        res.json(boat);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
-// Recupera barca da client_id
-router.get("/client/:id", (req, res) => {
-    db.get("SELECT * FROM boats WHERE id_cliente = ?", [req.params.id], (err, row) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (!row) {
+/**
+ * 📌 Recupera barca da client_id
+ */
+router.get("/client/:id", async (req, res) => {
+    try {
+        const boat = await db("boats").where({ id_cliente: req.params.id }).first();
+
+        if (!boat) {
             return res.status(404).json({ error: "Barca non trovata" });
         }
-        res.json(row);
-    });
+
+        res.json(boat);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
-
-
-
-
-
 
 /**
  * 📌 Aggiunge una nuova barca
  */
-router.post("/", (req, res) => {
-    const { targa, id_cliente, stato, molo_id } = req.body;
-    const query = "INSERT INTO boats (targa, id_cliente, stato, molo_id) VALUES (?, ?, ?, ?)";
-    db.run(query, [targa, id_cliente, stato, molo_id], function (err) {
-        if (err) {
-            return res.status(400).json({ error: err.message });
-        }
-        res.json({ id: this.lastID, targa, id_cliente, stato, molo_id });
-    });
+router.post("/", async (req, res) => {
+    // Estrai tutti i campi dal body
+    const data = req.body;
+
+    // Verifica che ci siano almeno alcuni dati
+    if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: "Nessun dato fornito" });
+    }
+
+    // Verifica che i campi obbligatori siano presenti
+    const requiredFields = ['targa', 'id_cliente', 'stato'];
+    const missingFields = requiredFields.filter(field => !(field in data));
+
+    if (missingFields.length > 0) {
+        return res.status(400).json({
+            error: `Campi obbligatori mancanti: ${missingFields.join(', ')}`
+        });
+    }
+
+    try {
+        // Inserisci i dati usando Knex
+        const [id] = await db("boats").insert(data).returning("id");
+
+        // Crea l'oggetto di risposta con tutti i campi più l'ID
+        const response = { id, ...data };
+        res.status(201).json(response);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
 });
 
 /**
- * 📌 Aggiorna una barca esistente
+ * 📌 Aggiorna una barca esistente in modo completamente dinamico
  */
-router.put("/:id", (req, res) => {
-    const { targa, id_cliente, stato, molo_id } = req.body;
-    const query = `
-    UPDATE boats 
-    SET targa = ?, id_cliente = ?, stato = ?, molo_id = ?, updated_at = CURRENT_TIMESTAMP 
-    WHERE id = ?`;
-    db.run(query, [targa, id_cliente, stato, molo_id, req.params.id], function (err) {
-        if (err) {
-            return res.status(400).json({ error: err.message });
-        }
-        if (this.changes === 0) {
+router.put("/:id", async (req, res) => {
+    const data = req.body;
+    const { id } = req.params;
+
+    // Verifica che ci siano dati da aggiornare
+    if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: "Nessun dato fornito per l'aggiornamento" });
+    }
+
+    try {
+        // Aggiungi timestamp di aggiornamento
+        const dataToUpdate = {
+            ...data,
+            updated_at: db.fn.now()
+        };
+
+        // Aggiorna i dati usando Knex
+        const updated = await db("boats").where({ id }).update(dataToUpdate);
+
+        if (updated === 0) {
             return res.status(404).json({ error: "Barca non trovata" });
         }
-        res.json({ message: "Barca aggiornata!" });
-    });
+
+        // Recupera la barca aggiornata
+        const boat = await db("boats").where({ id }).first();
+
+        res.json({
+            message: "Barca aggiornata!",
+            boat
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
 });
 
 /**
  * 📌 Cancella una barca per ID
  */
-router.delete("/:id", (req, res) => {
-    db.run("DELETE FROM boats WHERE id = ?", [req.params.id], function (err) {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (this.changes === 0) {
+router.delete("/:id", async (req, res) => {
+    try {
+        const deleted = await db("boats").where({ id: req.params.id }).delete();
+
+        if (deleted === 0) {
             return res.status(404).json({ error: "Barca non trovata" });
         }
+
         res.json({ message: "Barca eliminata!" });
-    });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 module.exports = router;
-
-
-
-
