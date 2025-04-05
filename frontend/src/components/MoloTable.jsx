@@ -14,6 +14,8 @@ const MoloTable = () => {
     posti_occupati: "",
     indirizzo: "",
     stato: "",
+    latitudine: "",
+    longitudine: "",
   });
 
   useEffect(() => {
@@ -48,6 +50,8 @@ const MoloTable = () => {
       posti_occupati: row.posti_occupati ?? "",
       indirizzo: row.indirizzo ?? "",
       stato: row.stato ?? "non_disponibile",
+      latitudine: row.latitudine ?? "",
+      longitudine: row.longitudine ?? "",
     });
   };
 
@@ -105,7 +109,7 @@ const MoloTable = () => {
 
       {editMolo && (
         <div className="mt-8 bg-white p-6 border border-blue-100 rounded-xl shadow-md">
-          <h2 className="text-xl font-bold mb-4 flex items-center border-b border-blue-100 pb-3">
+          <h2 className="text-xl text-black font-bold mb-4 flex items-center border-b border-blue-100 pb-3">
             <div className="bg-blue-600 p-2 rounded-lg text-white mr-3">
               <MapPin className="w-5 h-5" />
             </div>
@@ -151,6 +155,38 @@ const MoloTable = () => {
               />
             </div>
 
+            {/* Nuova sezione per latitudine e longitudine */}
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Latitudine
+                </label>
+                <input
+                  name="latitudine"
+                  type="number"
+                  step="any"
+                  value={formData.latitudine}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  placeholder="Es. 45.4642"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Longitudine
+                </label>
+                <input
+                  name="longitudine"
+                  type="number"
+                  step="any"
+                  value={formData.longitudine}
+                  onChange={handleChange}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  placeholder="Es. 9.1900"
+                />
+              </div>
+            </div>
+
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -186,10 +222,9 @@ const MoloTable = () => {
                 name="stato"
                 value={formData.stato}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all appearance-none bg-white"
+                className="w-full border text-black border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all appearance-none bg-white"
               >
                 <option value="attivo">Attivo</option>
-                <option value="movimento">movimento</option>
                 <option value="non_disponibile">Non Disponibile</option>
               </select>
             </div>

@@ -8,25 +8,25 @@ import CreateMolo from "./components/CreateMolo";
 import MoloTable from "./components/MoloTable";
 import MoloHome from "./components/MoloHome";
 import HomePage from "./components/HomePage";
+import Location from "./components/Location";
+import Plotter from "./components/Plotter";
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="flex flex-col min-h-screen w-full bg-slate-50">
-        <Header />
-        <Navbar />
-        <main className="flex-grow w-full">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/boat" element={<BoatTable />} />
-            <Route path="/createmolo" element={<MoloTable />} />
-            <Route path="/molo/:moloId" element={<MoloHome />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/login" element={<Login />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
+      <Header />
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/boat" element={<BoatTable />} />
+        <Route path="/createmolo" element={<MoloTable />} />
+        <Route path="/molo/:moloId" element={<MoloHome />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/location/:boatId" element={<Location />} />
+        <Route path="/plotter/:boatId" element={<Plotter boatId={1} />} />
+      </Routes>
+      <Footer />
     </BrowserRouter>
   );
 }

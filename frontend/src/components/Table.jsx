@@ -114,7 +114,7 @@ const Table = ({
                         onClick={(e) => handleBoatAction(row.id, e)}
                         className="px-2 py-1 border rounded-md hover:bg-blue-200"
                       >
-                        Dettagli
+                        Localizza
                       </button>
                     </td>
                   )}
