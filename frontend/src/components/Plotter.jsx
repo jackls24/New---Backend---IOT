@@ -96,11 +96,24 @@ const Plotter = ({ boatId, moloId }) => {
     fetchMoloData();
   }, [moloId]);
 
+  console.log("coordinates", coordinates);
   // Carica i dati delle coordinate
   useEffect(() => {
     const fetchCoordinates = async () => {
       try {
         setLoading(true);
+
+        setLoading(true);
+        setError(null);
+
+        // Verifica che boatId sia disponibile
+        if (!boatId) {
+          setError("ID della barca non specificato");
+          setLoading(false);
+          return;
+        }
+
+        /*
 
         const simulatedCoordinates = [
           { x: 0, y: 0, timestamp: "2025-04-03T09:00:00.000Z" },
@@ -114,8 +127,32 @@ const Plotter = ({ boatId, moloId }) => {
           { x: 9.8, y: 7.2, timestamp: "2025-04-03T11:00:00.000Z" },
           { x: 11, y: 8.4, timestamp: "2025-04-03T11:15:00.000Z" },
         ];
+        */
 
-        const coordGeo2 = convertToGeographicCoordinates(simulatedCoordinates);
+        const response = await fetch(
+          `http://localhost:5001/locations/boat/${boatId}`
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `Errore nel recupero delle posizioni: ${response.statusText}`
+          );
+        }
+
+        const responseData = await response.json();
+
+        if (!responseData.data || responseData.data.length === 0) {
+          setError("Nessuna posizione disponibile per questa barca");
+          setLoading(false);
+          return;
+        }
+
+        const sortedData = [...responseData.data].sort(
+          (a, b) => a.timestamp - b.timestamp
+        );
+
+        const coordGeo2 = convertToGeographicCoordinates(sortedData);
+        console.log(responseData.data);
 
         //Versione 2
         const formattedData = coordGeo2.map((point) => {

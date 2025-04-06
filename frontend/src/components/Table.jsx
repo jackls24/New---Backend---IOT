@@ -5,8 +5,9 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  MapPin,
 } from "lucide-react";
-import handleBoatAction from "../../utils/handleBoatAction";
+import { useNavigate } from "react-router-dom";
 
 const Table = ({
   columns,
@@ -20,6 +21,15 @@ const Table = ({
     direction: "asc",
   });
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Ottieni la funzione navigate da React Router
+  const navigate = useNavigate();
+
+  // Funzione per gestire il reindirizzamento alla pagina di localizzazione
+  const handleLocalize = (id, e) => {
+    e.stopPropagation();
+    navigate(`/location/${id}`);
+  };
 
   // Ordinamento dei dati
   const sortedData = React.useMemo(() => {
@@ -55,6 +65,11 @@ const Table = ({
       direction = "desc";
     }
     setSortConfig({ key, direction });
+  };
+
+  const handleMoloNavigation = (moloId, e) => {
+    e.stopPropagation();
+    navigate(`/molo/${moloId}`);
   };
 
   return (
@@ -103,19 +118,33 @@ const Table = ({
                       key={column.key}
                       className="px-4 py-3 text-sm text-gray-900"
                     >
-                      {column.render
-                        ? column.render(row[column.key], row)
-                        : row[column.key]}
+                      {column.label === "Molo" ? (
+                        <button
+                          onClick={(e) =>
+                            handleMoloNavigation(row[column.key], e)
+                          }
+                          className="text-blue-600 bg-white hover:text-blue-800 hover:underline font-medium flex items-center"
+                        >
+                          {row[column.key]}
+                        </button>
+                      ) : column.render ? (
+                        column.render(row[column.key], row)
+                      ) : (
+                        row[column.key]
+                      )}
                     </td>
                   ))}
                   {showActionButton && (
                     <td className="px-4 py-3 text-sm bg-blue-200">
-                      <button
-                        onClick={(e) => handleBoatAction(row.id, e)}
-                        className="px-2 py-1 border rounded-md hover:bg-blue-200"
-                      >
-                        Localizza
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={(e) => handleLocalize(row.id, e)}
+                          className="px-2 py-1 border rounded-md hover:bg-blue-200 flex items-center"
+                        >
+                          <MapPin className="w-4 h-4 mr-1" />
+                          Localizza
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>

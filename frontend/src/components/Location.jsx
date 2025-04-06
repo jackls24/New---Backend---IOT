@@ -38,6 +38,8 @@ const Location = () => {
         `http://localhost:5001/boats/${boatId}`
       );
 
+      window.scrollTo(0, 0);
+
       const boatData = boatResponse.data;
 
       if (
