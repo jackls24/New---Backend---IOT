@@ -6,6 +6,7 @@ const userRouter = require("./api/user");
 const boatRouter = require("./api/boat");
 const moloRouter = require("./api/molo");
 const locationRouter = require("./api/location");
+const state = require("./api/state");
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -19,6 +20,7 @@ app.use("/users", userRouter);
 app.use("/boats", boatRouter);
 app.use("/molo", moloRouter);
 app.use("/locations", locationRouter);
+app.use("/state", state);
 
 
 
