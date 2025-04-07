@@ -11,7 +11,7 @@ router.get("/", async (req, res) => {
     try {
         await db.transaction(async (trx) => {
             const stolenBoats = await trx("boats")
-                .select("id", "targa", "stato")
+                .select("id", "targa", "stato", "key")
                 .where("fresh", true)
                 .whereNot("stato", "rubato");
 
