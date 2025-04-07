@@ -5,6 +5,7 @@
 #include "LoRaMesh/LoRaMesh.h"
 #include "LoRaMesh/state_t.h"
 #include "BackendService.h"
+#include <iot_board.h>
 
 // Dichiarazione oggetto Preferences
 Preferences preferences;
@@ -56,43 +57,38 @@ void inviaMessaggiTest()
 
 void setup()
 {
-
-    // Inizializzazione della seriale
     Serial.begin(115200);
-    Serial.println("\n\nTest comunicazione con backend");
 
-    // Connessione al WiFi
+    IoTBoard::init_serial();
+    IoTBoard::init_display();
+    IoTBoard::init_leds();
+
+    Serial.println("\n\nTest comunicazione con backend");
+    LoRaMesh::init(targa_gabbiotto, onReceive);
+
     WiFi.begin(ssid, password);
-    Serial.print("Connessione al WiFi");
+
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
         Serial.print(".");
     }
+
     Serial.println("\nConnesso al WiFi!");
     Serial.print("Indirizzo IP: ");
     Serial.println(WiFi.localIP());
-
-    // Inizializzazione del LoRaMesh
-    LoRaMesh::init(targa_gabbiotto, onReceive);
-
-    // Test di invio di un messaggio al backend
-    inviaMessaggiTest();
 }
 
 void loop()
 {
-    // Aggiornamento del LoRaMesh per gestire i messaggi in arrivo
     LoRaMesh::update();
 
     if (WiFi.status() == WL_CONNECTED)
     {
-
         static unsigned long lastSendTime = 0;
         if (millis() - lastSendTime > 30000)
         {
-            inviaMessaggiTest();
-            lastSendTime = millis();
+            Serial.println("Dovrei inviare al be");
         }
     }
     else
@@ -100,10 +96,9 @@ void loop()
         Serial.println("Nessuna connesione a internet");
     }
 
-    delay(10);
+    delay(1000);
 }
 
-// Callback per la ricezione di messaggi
 void onReceive(LoRaMesh_message_t message)
 {
     Serial.println("\n=== Messaggio LoRaMesh ricevuto ===");
