@@ -12,6 +12,7 @@ const BoatTable = () => {
     id_cliente: "",
     stato: "",
     molo_id: "",
+    fresh: false,
   });
 
   useEffect(() => {
@@ -61,7 +62,7 @@ const BoatTable = () => {
     fetch(`http://localhost:5001/boats/${editBoat.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
+      body: JSON.stringify({ ...formData, fresh: true }),
     })
       .then((res) => {
         if (!res.ok)
