@@ -18,4 +18,6 @@ public:
 
     // Invia aggiornamento posizione
     bool sendPositionUpdate(const LoRaMesh_message_t &message);
+
+    String getKeyFromTarga(String targa);
 };

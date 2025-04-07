@@ -11,14 +11,13 @@
 Preferences preferences;
 
 // Dichiarazione del servizio backend
-BackendService backendService;
 
 // Configurazione WiFi
 const char *ssid = "S24 Ultra di giacomo";
 const char *password = "87654321";
 
 // Identificativo della barca/gabbiotto
-char targa_gabbiotto[7] = "GAB001";
+char targa_gabbiotto[8] = "AB123XY";
 
 // Funzione per gestire i messaggi ricevuti
 void onReceive(LoRaMesh_message_t message);
@@ -43,7 +42,7 @@ void inviaMessaggiTest()
     bool success;
 
     Serial.println("Invio messaggio di barca ormeggiata...");
-    success = backendService.sendMessageToBackend(messageOrmeggiata);
+    // success = backendService.sendMessageToBackend(messageOrmeggiata);
     Serial.println("Risultato invio: " + String(success ? "Successo" : "Fallimento"));
 
     /*
@@ -89,6 +88,7 @@ void loop()
         if (millis() - lastSendTime > 30000)
         {
             Serial.println("Dovrei inviare al be");
+            inviaMessaggiTest();
         }
     }
     else
@@ -111,18 +111,5 @@ void onReceive(LoRaMesh_message_t message)
     Serial.println("Stato: " + String(message.payload.stato == st_ormeggio ? "Ormeggiata" : "Rubata"));
     Serial.println("===================================\n");
 
-    // Quando riceviamo un messaggio, lo inviamo al backend
-    if (WiFi.status() == WL_CONNECTED)
-    {
-        backendService.sendMessageToBackend(message);
-
-        // Se il messaggio indica uno stato "rubata", inviamo anche una notifica di cambio stato
-        if (message.payload.stato == st_rubata)
-        {
-            backendService.sendStateChangeNotification(message);
-        }
-
-        // Aggiorniamo comunque la posizione
-        backendService.sendPositionUpdate(message);
-    }
+    return;
 }

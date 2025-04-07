@@ -44,7 +44,20 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
     Serial.println("Codice di stato: " + String(httpResponseCode));
 
     String response = http.getString();
-    Serial.println("Body risposta: " + response);
+
+    String key = getKeyFromTarga(message.targa_mittente);
+    Serial.println("Key: " + key);
+
+    if (httpResponseCode == HTTP_CODE_OK)
+    {
+        Serial.println("Richiesta completata con successo.");
+        Serial.println("Risposta: " + response);
+    }
+    else
+    {
+        Serial.print("Errore: ");
+        Serial.println(http.errorToString(httpResponseCode));
+    }
 
     if (httpResponseCode > 0)
     {
@@ -56,7 +69,6 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
         Serial.print("Errore: ");
         Serial.println(http.errorToString(httpResponseCode));
     }
-    Serial.println("============================\n");
 
     // Chiudi connessione
     http.end();
@@ -64,6 +76,30 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
     // Verifica se la richiesta ha avuto successo
     return httpResponseCode >= 200 && httpResponseCode < 300;
 }
+
+String BackendService::getKeyFromTarga(String targa)
+{
+    HTTPClient http;
+    String endpoint = baseUrl + "/boats/targa/" + String(targa);
+
+    http.begin(endpoint);
+    http.addHeader("Content-Type", "application/json");
+
+    DynamicJsonDocument doc(1024);
+
+    Serial.println("Invio richiesta per ottenere la chiave della targa: " + targa);
+
+    int httpResponseCode = http.GET();
+    Serial.println("after");
+
+    String response = http.getString();
+
+    String key = doc["key"].as<String>();
+    Serial.println("response: " + response);
+
+    return key;
+}
+
 bool BackendService::sendStateChangeNotification(const LoRaMesh_message_t &message)
 {
     HTTPClient http;
@@ -75,8 +111,8 @@ bool BackendService::sendStateChangeNotification(const LoRaMesh_message_t &messa
     DynamicJsonDocument doc(512);
     doc["targa_barca"] = message.targa_mittente;
     doc["stato_attuale"] = message.payload.stato == st_ormeggio ? "ormeggiata" : "rubata";
-    doc["posizione_x"] = message.payload.pos_x;                 // Corretto: usa pos_x invece di posX
-    doc["posizione_y"] = message.payload.pos_y;                 // Corretto: usa pos_y invece di posY
+    doc["posizione_x"] = message.payload.pos_x; // Corretto: usa pos_x invece di posX
+    doc["posizione_y"] = message.payload.pos_y; // Corretto: usa pos_y invece di posY
     /*doc["livello_batteria"] = message.payload.livello_batteria; // Aggiunto livello_batteria*/
 
     String jsonPayload;
