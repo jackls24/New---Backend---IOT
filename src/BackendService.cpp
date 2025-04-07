@@ -25,7 +25,7 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
     doc["targa_mittente"] = message.targa_mittente;
     doc["message_id"] = message.message_id;
     doc["direzione"] = message.payload.direzione;
-    doc["livello_batteria"] = message.payload.livello_batteria;
+    /*doc["livello_batteria"] = message.payload.livello_batteria;*/
     doc["posizione_x"] = message.payload.pos_x;
     doc["posizione_y"] = message.payload.pos_y;
     doc["stato"] = message.payload.stato == st_ormeggio ? "ormeggiata" : "rubata";
@@ -77,7 +77,7 @@ bool BackendService::sendStateChangeNotification(const LoRaMesh_message_t &messa
     doc["stato_attuale"] = message.payload.stato == st_ormeggio ? "ormeggiata" : "rubata";
     doc["posizione_x"] = message.payload.pos_x;                 // Corretto: usa pos_x invece di posX
     doc["posizione_y"] = message.payload.pos_y;                 // Corretto: usa pos_y invece di posY
-    doc["livello_batteria"] = message.payload.livello_batteria; // Aggiunto livello_batteria
+    /*doc["livello_batteria"] = message.payload.livello_batteria; // Aggiunto livello_batteria*/
 
     String jsonPayload;
     serializeJson(doc, jsonPayload);
@@ -110,7 +110,7 @@ bool BackendService::sendPositionUpdate(const LoRaMesh_message_t &message)
     doc["posizione_x"] = message.payload.pos_x; // Corretto: usa pos_x invece di posX
     doc["posizione_y"] = message.payload.pos_y; // Corretto: usa pos_y invece di posY
     doc["direzione"] = message.payload.direzione;
-    doc["livello_batteria"] = message.payload.livello_batteria; // Aggiunto livello_batteria
+    /*doc["livello_batteria"] = message.payload.livello_batteria; // Aggiunto livello_batteria*/
 
     String jsonPayload;
     serializeJson(doc, jsonPayload);

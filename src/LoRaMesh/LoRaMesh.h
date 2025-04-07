@@ -15,8 +15,9 @@
 
 typedef struct
 {
+    uint16_t message_sequence;
     state_t stato;
-    uint8_t livello_batteria;
+    /*uint8_t livello_batteria;*/
     float pos_x;
     float pos_y;
     float direzione;
@@ -48,6 +49,7 @@ private:
     static void sendMessagePrivate(LoRaMesh_message_t message);
     static LoRaMesh_message_t messageToSend;
     static LoRaMesh_message_t messageToRedirect;
+    static uint16_t message_sequence;
 };
 
 #endif

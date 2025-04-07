@@ -25,6 +25,7 @@ LoRaMesh_message_t LoRaMesh::messageToSend = {0};
 LoRaMesh_message_t LoRaMesh::messageToRedirect = {0};
 CircularQueue<uint16_t> LoRaMesh::queue;
 void (*LoRaMesh::userOnReceiveCallBack)(LoRaMesh_message_t) = nullptr;
+uint16_t LoRaMesh::message_sequence = 0;
 
 bool LoRaMesh::init(const char targa[7], void (*userOnReceiveCallBack)(LoRaMesh_message_t)) {
     for(int i = 0; i < 7; i++) {
@@ -35,6 +36,7 @@ bool LoRaMesh::init(const char targa[7], void (*userOnReceiveCallBack)(LoRaMesh_
     LoRaMesh::messageToRedirect = {0};
     LoRaMesh::userOnReceiveCallBack = userOnReceiveCallBack;
     LoRaMesh::queue = {};
+    LoRaMesh::message_sequence = 0;
     IoTBoard::init_spi();
     if(!IoTBoard::init_lora()) {
         return 0;
@@ -95,8 +97,8 @@ int LoRaMesh::sendMessage(const char targa_destinatario[7], LoRaMesh_payload_t p
         return LORA_MESH_MESSAGE_QUEUE_FULL;
     }
 
+    messageToSend.payload.message_sequence = LoRaMesh::message_sequence++;
     xorBuffer(&payload, sizeof(LoRaMesh_payload_t), privateKey, sizeof(privateKey));
-
 
     messageToSend = {
         .message_id = (uint16_t)random(1, 65535),

@@ -34,7 +34,7 @@ void inviaMessaggiTest()
 
     messageOrmeggiata.message_id = 1001;
     messageOrmeggiata.payload.stato = st_ormeggio;
-    messageOrmeggiata.payload.livello_batteria = 85;
+    /*messageOrmeggiata.payload.livello_batteria = 85;*/
     messageOrmeggiata.payload.pos_x = 43.7102;
     messageOrmeggiata.payload.pos_y = 10.4135;
     messageOrmeggiata.payload.direzione = 45.5;
@@ -110,7 +110,7 @@ void onReceive(LoRaMesh_message_t message)
     Serial.println("Destinatario: " + String(message.targa_destinatario));
     Serial.println("Mittente: " + String(message.targa_mittente));
     Serial.println("ID messaggio: " + String(message.message_id));
-    Serial.println("Livello batteria: " + String(message.payload.livello_batteria) + "%");
+    /*Serial.println("Livello batteria: " + String(message.payload.livello_batteria) + "%");*/
     Serial.println("Posizione: (" + String(message.payload.pos_x, 4) + ", " + String(message.payload.pos_y, 4) + ")");
     Serial.println("Direzione: " + String(message.payload.direzione) + "°");
     Serial.println("Stato: " + String(message.payload.stato == st_ormeggio ? "Ormeggiata" : "Rubata"));

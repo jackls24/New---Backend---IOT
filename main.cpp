@@ -166,7 +166,7 @@ void onReceive(LoRaMesh_message_t message)
     Serial.println("Mittente" + String(message.targa_mittente));
     Serial.println("Id messaggio" + String(message.message_id));
     Serial.println("" + String(message.payload.direzione));
-    Serial.println("" + String(message.payload.livello_batteria));
+    /*Serial.println("" + String(message.payload.livello_batteria));*/
     Serial.println("" + String(message.payload.pos_x));
     Serial.println("" + String(message.payload.pos_y));
     Serial.println("" + String(message.payload.stato == st_ormeggio ? "Ormeggiata" : "Rubata"));
