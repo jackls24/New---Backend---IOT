@@ -11,21 +11,14 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
 
     String endpoint = baseUrl + "/boats/targa/" + String(message.targa_mittente);
 
-    // Debug della richiesta - URL
-    Serial.println("\n==== DEBUG RICHIESTA HTTP ====");
-    Serial.println("URL: " + endpoint);
-
-    // Headers
     http.begin(endpoint);
     http.addHeader("Content-Type", "application/json");
 
-    // Body della richiesta
     DynamicJsonDocument doc(1024);
     doc["targa_destinatario"] = message.targa_destinatario;
     doc["targa_mittente"] = message.targa_mittente;
     doc["message_id"] = message.message_id;
     doc["direzione"] = message.payload.direzione;
-    /*doc["livello_batteria"] = message.payload.livello_batteria;*/
     doc["posizione_x"] = message.payload.pos_x;
     doc["posizione_y"] = message.payload.pos_y;
     doc["stato"] = message.payload.stato == st_ormeggio ? "ormeggiata" : "rubata";
@@ -33,31 +26,12 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
 
     String jsonPayload;
     serializeJson(doc, jsonPayload);
-    Serial.println("Body: " + jsonPayload);
-    Serial.println("============================\n");
 
-    // Invio della richiesta
     int httpResponseCode = http.PUT(jsonPayload);
-
-    // Debug della risposta
-    Serial.println("\n==== DEBUG RISPOSTA HTTP ====");
-    Serial.println("Codice di stato: " + String(httpResponseCode));
 
     String response = http.getString();
 
     String key = getKeyFromTarga(message.targa_mittente);
-    Serial.println("Key: " + key);
-
-    if (httpResponseCode == HTTP_CODE_OK)
-    {
-        Serial.println("Richiesta completata con successo.");
-        Serial.println("Risposta: " + response);
-    }
-    else
-    {
-        Serial.print("Errore: ");
-        Serial.println(http.errorToString(httpResponseCode));
-    }
 
     if (httpResponseCode > 0)
     {
@@ -70,34 +44,75 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
         Serial.println(http.errorToString(httpResponseCode));
     }
 
-    // Chiudi connessione
     http.end();
 
-    // Verifica se la richiesta ha avuto successo
     return httpResponseCode >= 200 && httpResponseCode < 300;
 }
 
 String BackendService::getKeyFromTarga(String targa)
 {
     HTTPClient http;
-    String endpoint = baseUrl + "/boats/targa/" + String(targa);
+
+    char targa_temp[8];
+    strncpy(targa_temp, targa.c_str(), 7);
+    targa_temp[7] = '\0';
+
+    String endpoint = baseUrl + "/boats/targa/" + String(targa_temp);
 
     http.begin(endpoint);
     http.addHeader("Content-Type", "application/json");
 
-    DynamicJsonDocument doc(1024);
-
-    Serial.println("Invio richiesta per ottenere la chiave della targa: " + targa);
-
     int httpResponseCode = http.GET();
-    Serial.println("after");
 
-    String response = http.getString();
+    if (httpResponseCode > 0)
+    {
+        String response = http.getString();
+        Serial.println("Risposta completa: " + response);
 
-    String key = doc["key"].as<String>();
-    Serial.println("response: " + response);
+        DynamicJsonDocument responseDoc(1024);
+        DeserializationError error = deserializeJson(responseDoc, response);
 
-    return key;
+        if (error)
+        {
+            Serial.print("Errore deserializeJson(): ");
+            Serial.println(error.c_str());
+            http.end();
+            return "";
+        }
+
+        Serial.println("Contenuto JSON deserializzato:");
+        serializeJsonPretty(responseDoc, Serial);
+        Serial.println();
+
+        if (responseDoc.containsKey("key"))
+        {
+            String key = responseDoc["key"].as<String>();
+            Serial.println("Key estratta: " + key);
+            http.end();
+            return key;
+        }
+        else
+        {
+            Serial.println("Campo 'key' non trovato nella risposta JSON");
+
+            for (JsonPair kv : responseDoc.as<JsonObject>())
+            {
+                Serial.print("Campo disponibile: ");
+                Serial.print(kv.key().c_str());
+                Serial.print(" = ");
+                serializeJson(kv.value(), Serial);
+                Serial.println();
+            }
+        }
+    }
+    else
+    {
+        Serial.print("Errore nella richiesta HTTP: ");
+        Serial.println(http.errorToString(httpResponseCode));
+    }
+
+    http.end();
+    return "";
 }
 
 bool BackendService::sendStateChangeNotification(const LoRaMesh_message_t &message)
