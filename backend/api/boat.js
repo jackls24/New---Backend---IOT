@@ -26,6 +26,30 @@ router.get("/", async (req, res) => {
     }
 });
 
+
+/**
+ * 📌 Recupera tutte le barche con targa 
+ */
+router.get("/targa/:targa", async (req, res) => {
+
+
+    const { targa } = req.params;
+
+
+    try {
+        let query = db("boats").select("*").first();
+
+        if (targa) {
+            query = query.where({ targa });
+        }
+
+        const boats = await query;
+        res.json(boats);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 /**
  * 📌 Recupera una barca specifica per ID
  */
@@ -139,6 +163,11 @@ router.put("/targa/:targa", async (req, res) => {
     const data = req.body;
     const { targa } = req.params;
 
+    console.log("req:", req);
+
+
+
+
     // Verifica che ci siano dati da aggiornare
     if (Object.keys(data).length === 0) {
         return res.status(400).json({ error: "Nessun dato fornito per l'aggiornamento" });
@@ -190,6 +219,8 @@ router.put("/targa/:targa", async (req, res) => {
         res.status(400).json({ error: error.message });
     }
 });
+
+
 
 /**
  * 📌 Cancella una barca per ID

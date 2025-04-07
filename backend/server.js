@@ -33,7 +33,6 @@ app.listen(PORT, () => {
 
 const os = require('os');
 
-// Trova l'interfaccia di rete da usare per la rete locale
 function getLocalIP() {
     const interfaces = os.networkInterfaces();
     for (const name of Object.keys(interfaces)) {
