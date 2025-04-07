@@ -2,15 +2,22 @@
 #include <iot_board.h>
 #include <WiFi.h>
 #include <Preferences.h>
+#include "Crypto/CryptoUtils.h"
 #include "LoRaMesh/LoRaMesh.h"
 #include "LoRaMesh/state_t.h"
 #include "BackendService.h"
 #include <iot_board.h>
+#include <queue>
+using std::queue;
+
+queue<LoRaMesh_message_t> coda;
+
 
 // Dichiarazione oggetto Preferences
 Preferences preferences;
 
 // Dichiarazione del servizio backend
+BackendService backendService;
 
 // Configurazione WiFi
 const char *ssid = "S24 Ultra di giacomo";
@@ -84,12 +91,51 @@ void loop()
 
     if (WiFi.status() == WL_CONNECTED)
     {
-        static unsigned long lastSendTime = 0;
-        if (millis() - lastSendTime > 30000)
+        while(!coda.empty())
         {
-            Serial.println("Dovrei inviare al be");
-            inviaMessaggiTest();
+            LoRaMesh_message_t message = (LoRaMesh_message_t)coda.front();        
+            coda.pop();
+            Serial.print("Destinatario: ");
+            for(int i = 0; i < 7; i++) {
+                Serial.print(message.targa_destinatario[i]);
+            }
+            Serial.println();
+            String key = backendService.getKeyFromTarga(message.targa_mittente);
+            xorBuffer(&message.payload, sizeof(LoRaMesh_payload_t), (uint8_t*)key.c_str(), KEY_LEN);
+            Serial.println("Sequenza: " + String(message.payload.message_sequence));
+            backendService.sendMessageToBackend(message);
+
+            /*Serial.println("\n=== Messaggio LoRaMesh ricevuto ===");*/
+            /**/
+            /*Serial.print("Destinatario: ");*/
+            /*for(int i = 0; i < 7; i++) {*/
+            /*    Serial.print(message.targa_destinatario[i]);*/
+            /*}*/
+            /*Serial.println();*/
+            /**/
+            /*Serial.print("Mittente: ");*/
+            /*for(int i = 0; i < 7; i++) {*/
+            /*    Serial.print(message.targa_mittente[i]);*/
+            /*}*/
+            /*Serial.println();*/
+            /**/
+            /*Serial.println("ID messaggio: " + String(message.message_id));*/
+            /*Serial.println("===================================\n");*/
+            /**/
+            /*String key = backendService.getKeyFromTarga(message.targa_mittente);*/
+            /*xorBuffer(&message.payload, sizeof(LoRaMesh_payload_t), (uint8_t*)key.c_str(), KEY_LEN);*/
+            /*Serial.println("===================================\n");*/
+            /*Serial.println("Posizione: (" + String(message.payload.pos_x, 4) + ", " + String(message.payload.pos_y, 4) + ")");*/
+            /*Serial.println("Direzione: " + String(message.payload.direzione) + "°");*/
+            /*Serial.println("Stato: " + String(message.payload.stato == st_ormeggio ? "Ormeggiata" : "Rubata"));*/
+            /*Serial.println("===================================\n");*/
         }
+        /*static unsigned long lastSendTime = 0;*/
+        /*if (millis() - lastSendTime > 30000)*/
+        /*{*/
+        /*    Serial.println("Dovrei inviare al be");*/
+        /*    inviaMessaggiTest();*/
+        /*}*/
     }
     else
     {
@@ -101,15 +147,6 @@ void loop()
 
 void onReceive(LoRaMesh_message_t message)
 {
-    Serial.println("\n=== Messaggio LoRaMesh ricevuto ===");
-    Serial.println("Destinatario: " + String(message.targa_destinatario));
-    Serial.println("Mittente: " + String(message.targa_mittente));
-    Serial.println("ID messaggio: " + String(message.message_id));
-    /*Serial.println("Livello batteria: " + String(message.payload.livello_batteria) + "%");*/
-    Serial.println("Posizione: (" + String(message.payload.pos_x, 4) + ", " + String(message.payload.pos_y, 4) + ")");
-    Serial.println("Direzione: " + String(message.payload.direzione) + "°");
-    Serial.println("Stato: " + String(message.payload.stato == st_ormeggio ? "Ormeggiata" : "Rubata"));
-    Serial.println("===================================\n");
-
+    coda.push(message);
     return;
 }

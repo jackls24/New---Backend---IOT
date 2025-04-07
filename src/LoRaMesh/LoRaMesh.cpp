@@ -1,8 +1,5 @@
 #include "LoRaMesh/LoRaMesh.h"
 #include "Crypto/CryptoUtils.h"
-#include "BackendService.h"
-
-BackendService backendService;
 
 char LoRaMesh::targa[TARGA_LEN] = {0, 0, 0, 0, 0, 0, 0};
 
@@ -85,22 +82,13 @@ void LoRaMesh::onReceive(int packetSize)
 
     // Decriptiamo con la chiave comune
     xorBuffer(&decryptedMessage, sizeof(LoRaMesh_message_t), commonKey, sizeof(commonKey));
-
-    String key = backendService.getKeyFromTarga(decryptedMessage.targa_mittente);
-
-    Serial.println("Key from OnReceve: " + key);
-
-    // Il messaggio non è per noi, lo reinviamo
     if (memcmp(decryptedMessage.targa_destinatario, LoRaMesh::targa, 7) != 0)
     {
         messageToRedirect = encryptedMessage; // messaggio originale criptato
         return;
     }
-
-    // Sennò decriptiamo il payload
-    xorBuffer(&decryptedMessage.payload, sizeof(LoRaMesh_payload_t), privateKey, sizeof(privateKey));
-
     userOnReceiveCallBack(decryptedMessage);
+    return;
 }
 
 int LoRaMesh::sendMessage(const char targa_destinatario[7], LoRaMesh_payload_t payload)

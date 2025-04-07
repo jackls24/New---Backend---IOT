@@ -9,7 +9,12 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
 {
     HTTPClient http;
 
-    String endpoint = baseUrl + "/boats/targa/" + String(message.targa_mittente);
+    String targa = "";
+    for(int i = 0; i < 7; i++) {
+        targa += message.targa_mittente[i];
+    }
+    String endpoint = baseUrl + "/boats/targa/" + targa;
+    Serial.println(baseUrl + "/boats/targa/" + targa);
 
     http.begin(endpoint);
     http.addHeader("Content-Type", "application/json");
@@ -30,8 +35,9 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
     int httpResponseCode = http.PUT(jsonPayload);
 
     String response = http.getString();
+    Serial.println(response);
 
-    String key = getKeyFromTarga(message.targa_mittente);
+    /*String key = getKeyFromTarga(message.targa_mittente);*/
 
     if (httpResponseCode > 0)
     {
