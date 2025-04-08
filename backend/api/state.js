@@ -9,11 +9,14 @@ const db = knex(config.development);
 // Ottieni barche con stato appena cambiato
 router.get("/", async (req, res) => {
     try {
+
         await db.transaction(async (trx) => {
             const stolenBoats = await trx("boats")
                 .select("id", "targa", "stato", "key")
                 .where("fresh", true)
-                .whereNot("stato", "rubato");
+                .whereNot("stato", "rubato")
+                .whereNot("stato", "rubata");
+
 
 
             if (stolenBoats.length > 0) {

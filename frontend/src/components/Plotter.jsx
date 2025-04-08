@@ -19,8 +19,6 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css"; // Importa i CSS di Leaflet
-
-// Fix per le icone di Leaflet
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
@@ -33,13 +31,9 @@ let DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Registra il plugin per le annotazioni
 Chart.register(annotationPlugin);
 
 const Plotter = ({ boatId, moloId }) => {
-  console.log("Boat ID:", boatId);
-  console.log("Molo ID:", moloId);
-
   // Stati per gestire i dati e l'UI
   const [coordinates, setCoordinates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,8 +69,6 @@ const Plotter = ({ boatId, moloId }) => {
         }
 
         const data = await response.json();
-
-        console.log(data);
         // Verifica esplicita per le coordinate
         if (!data || !data.latitudine || !data.longitudine) {
           setMoloError("Coordinate geografiche del molo non disponibili");
@@ -96,17 +88,12 @@ const Plotter = ({ boatId, moloId }) => {
     fetchMoloData();
   }, [moloId]);
 
-  console.log("coordinates", coordinates);
-  // Carica i dati delle coordinate
   useEffect(() => {
     const fetchCoordinates = async () => {
       try {
         setLoading(true);
-
-        setLoading(true);
         setError(null);
 
-        // Verifica che boatId sia disponibile
         if (!boatId) {
           setError("ID della barca non specificato");
           setLoading(false);
@@ -152,9 +139,7 @@ const Plotter = ({ boatId, moloId }) => {
         );
 
         const coordGeo2 = convertToGeographicCoordinates(sortedData);
-        console.log(responseData.data);
 
-        //Versione 2
         const formattedData = coordGeo2.map((point) => {
           return {
             geoX: point.lng,
@@ -178,6 +163,14 @@ const Plotter = ({ boatId, moloId }) => {
   }, [boatId, moloLoading, moloError]);
 
   const convertToGeographicCoordinates = (cartesianCoords) => {
+    if (!molo?.latitudine || !molo?.longitudine) {
+      return cartesianCoords.map((point) => ({
+        ...point,
+        lat: 0,
+        lng: 0,
+      }));
+    }
+
     const origin = {
       lat: molo?.latitudine,
       lng: molo?.longitudine,
@@ -266,9 +259,10 @@ const Plotter = ({ boatId, moloId }) => {
   const puntoArrivo = 0;
 
   useEffect(() => {
-    if (coordinates.length === 0 || !chartRef.current) return;
+    if (coordinates.length === 0 || !chartRef.current || showMap) {
+      return;
+    }
 
-    // Distruggi il grafico esistente se presente
     if (chartInstance.current) {
       chartInstance.current.destroy();
     }
@@ -337,17 +331,6 @@ const Plotter = ({ boatId, moloId }) => {
       });
     }
 
-    // Aggiungi il punto del porto per riferimento
-    chartData.datasets.push({
-      label: "Porto",
-      data: [{ x: 15.106616683547559, y: 37.514856673524534 }],
-      backgroundColor: "#0284c7", // Blu chiaro
-      borderColor: "#0369a1",
-      pointRadius: 8,
-      pointHoverRadius: 10,
-      pointStyle: "circle",
-    });
-
     // Aggiungi linea tratteggiata per la rotta futura
     chartData.datasets.push({
       label: "Percorso proiettato",
@@ -382,11 +365,11 @@ const Plotter = ({ boatId, moloId }) => {
             },
             suggestedMin:
               coordinates.length > 0
-                ? Math.min(...coordinates.map((c) => c.x)) - 0.02
+                ? Math.min(...coordinates.map((c) => c.x)) - 3
                 : 0,
             suggestedMax:
               coordinates.length > 0
-                ? Math.max(...coordinates.map((c) => c.x)) + 0.02
+                ? Math.max(...coordinates.map((c) => c.x)) + 3
                 : 0,
             bounds: "data",
             padding: 20,
@@ -399,11 +382,11 @@ const Plotter = ({ boatId, moloId }) => {
             },
             suggestedMin:
               coordinates.length > 0
-                ? Math.min(...coordinates.map((c) => c.y)) - 0.02
+                ? Math.min(...coordinates.map((c) => c.y)) - 3
                 : 0,
             suggestedMax:
               coordinates.length > 0
-                ? Math.max(...coordinates.map((c) => c.y)) + 0.02
+                ? Math.max(...coordinates.map((c) => c.y)) + 3
                 : 0,
             bounds: "data",
             padding: 20,
@@ -481,7 +464,7 @@ const Plotter = ({ boatId, moloId }) => {
         chartInstance.current.destroy();
       }
     };
-  }, [coordinates, puntoArrivo]);
+  }, [coordinates, puntoArrivo, showMap]);
 
   if (moloLoading) {
     return (
@@ -604,64 +587,62 @@ const Plotter = ({ boatId, moloId }) => {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
-              {coordinates.length > 0 && (
-                <>
-                  <Marker
-                    position={[molo.latitudine, molo.longitudine]}
-                    icon={portIcon}
-                  >
-                    <Popup>
-                      <div className="p-2">
-                        <h3 className="text-lg font-bold">Porto</h3>
-                        <p>Punto di partenza (0,0)</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Lat: {molo.latitudine.toFixed(6)}°, Long:{" "}
-                          {molo.longitudine.toFixed(6)}°
-                        </p>
-                      </div>
-                    </Popup>
-                  </Marker>
+              <>
+                <Marker
+                  position={[molo.latitudine, molo.longitudine]}
+                  icon={portIcon}
+                >
+                  <Popup>
+                    <div className="p-2">
+                      <h3 className="text-lg font-bold">Porto</h3>
+                      <p>Punto di partenza (0,0)</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Lat: {molo.latitudine.toFixed(6)}°, Long:{" "}
+                        {molo.longitudine.toFixed(6)}°
+                      </p>
+                    </div>
+                  </Popup>
+                </Marker>
 
-                  <Marker
-                    position={[
-                      coordinates[coordinates.length - 1].geoY,
-                      coordinates[coordinates.length - 1].geoX,
-                    ]}
-                    icon={currentIcon}
-                  >
-                    <Popup>
-                      <div className="p-2">
-                        <h3 className="text-lg font-bold">Posizione attuale</h3>
-                        <p>
-                          Coordinate cartesiane: (
-                          {coordinates[coordinates.length - 1].x.toFixed(2)},{" "}
-                          {coordinates[coordinates.length - 1].y.toFixed(2)})
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Lat:{" "}
-                          {coordinates[coordinates.length - 1].geoY.toFixed(6)}
-                          °, Long:{" "}
-                          {coordinates[coordinates.length - 1].geoX.toFixed(6)}°
-                        </p>
-                        <p>
-                          {new Date(
-                            coordinates[coordinates.length - 1].timestamp
-                          ).toLocaleString()}
-                        </p>
-                      </div>
-                    </Popup>
-                  </Marker>
+                <Marker
+                  position={[
+                    coordinates[coordinates.length - 1].geoY,
+                    coordinates[coordinates.length - 1].geoX,
+                  ]}
+                  icon={currentIcon}
+                >
+                  <Popup>
+                    <div className="p-2">
+                      <h3 className="text-lg font-bold">Posizione attuale</h3>
+                      <p>
+                        Coordinate cartesiane: (
+                        {coordinates[coordinates.length - 1].x.toFixed(2)},{" "}
+                        {coordinates[coordinates.length - 1].y.toFixed(2)})
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Lat:{" "}
+                        {coordinates[coordinates.length - 1].geoY.toFixed(6)}
+                        °, Long:{" "}
+                        {coordinates[coordinates.length - 1].geoX.toFixed(6)}°
+                      </p>
+                      <p>
+                        {new Date(
+                          coordinates[coordinates.length - 1].timestamp
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+                  </Popup>
+                </Marker>
 
-                  <Polyline
-                    positions={coordinates.map((coord) => [
-                      coord.geoY,
-                      coord.geoX,
-                    ])}
-                    color="#1e40af"
-                    weight={3}
-                  />
-                </>
-              )}
+                <Polyline
+                  positions={coordinates.map((coord) => [
+                    coord.geoY,
+                    coord.geoX,
+                  ])}
+                  color="#1e40af"
+                  weight={3}
+                />
+              </>
             </MapContainer>
           </div>
         ) : (

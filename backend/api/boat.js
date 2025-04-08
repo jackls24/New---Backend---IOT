@@ -72,7 +72,8 @@ router.get("/:id", async (req, res) => {
  */
 router.get("/client/:id", async (req, res) => {
     try {
-        const boat = await db("boats").where({ id_cliente: req.params.id }).first();
+        const boat = await db("boats").where({ id_cliente: req.params.id }).orderBy("id", "desc")
+            .first();
 
         if (!boat) {
             return res.status(404).json({ error: "Barca non trovata" });
@@ -107,12 +108,24 @@ router.post("/", async (req, res) => {
     }
 
     try {
+
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let securityKey = '';
+
+        for (let i = 0; i < 16; i++) {
+            securityKey += characters.charAt(Math.floor(Math.random() * characters.length));
+        }
+        const dataToInsert = {
+            ...data,
+            key: securityKey,
+        };
+
         // Inserisci i dati usando Knex
-        const [id] = await db("boats").insert(data).returning("id");
+        const [id] = await db("boats").insert(dataToInsert);
+        const insertedBoat = await db("boats").where({ id }).first();
 
         // Crea l'oggetto di risposta con tutti i campi più l'ID
-        const response = { id, ...data };
-        res.status(201).json(response);
+        res.status(201).json(insertedBoat);
     } catch (error) {
         res.status(400).json({ error: error.message });
     }

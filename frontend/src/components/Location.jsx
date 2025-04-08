@@ -63,6 +63,7 @@ const Location = () => {
       };
 
       setLocation(locationData);
+
       setLoading(false);
     } catch (error) {
       console.error("Error fetching boat data:", error);
@@ -246,8 +247,8 @@ const Location = () => {
     );
   }
 
-  const latitude = location?.latitude || 45.4642;
-  const longitude = location?.longitude || 9.19;
+  const latitude = location?.latitude;
+  const longitude = location?.longitude;
   const name = location?.name || "Barca Esempio";
   const type = location?.type || "Yacht";
   const status = location?.status || "In movimento";
@@ -264,9 +265,8 @@ const Location = () => {
     const map = useMap();
 
     useEffect(() => {
-      // Attendi che la mappa sia pronta
       setTimeout(() => {
-        // Zoom out e poi zoom in per creare l'effetto
+        if (!latitude || !longitude) return;
         map.flyTo([latitude, longitude], 8, {
           animate: true,
           duration: 1.5,
@@ -359,7 +359,7 @@ const Location = () => {
                     style={{ color: "black" }}
                     className="text-xl font-bold text-blue-900"
                   >
-                    {latitude.toFixed(6)}°
+                    {latitude ? latitude.toFixed(6) : 0}°
                   </p>
                 </div>
               </motion.div>
@@ -377,7 +377,7 @@ const Location = () => {
                     style={{ color: "black" }}
                     className="text-xl font-bold text-black-900"
                   >
-                    {longitude.toFixed(6)}°
+                    {longitude ? longitude.toFixed(6) : 0}°
                   </p>
                 </div>
               </motion.div>
@@ -447,31 +447,34 @@ const Location = () => {
           </div>
           <div className="p-4">
             <div className="rounded-xl overflow-hidden border border-gray-200 shadow-inner">
-              <MapContainer
-                center={[latitude, longitude]}
-                zoom={30}
-                className="rounded-lg overflow-hidden"
-                style={{ height: "500px", width: "100%" }}
-              >
-                <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-                <ZoomAnimation />
+              {latitude && longitude && (
+                <MapContainer
+                  center={[latitude, longitude]}
+                  zoom={30}
+                  className="rounded-lg overflow-hidden"
+                  style={{ height: "500px", width: "100%" }}
+                >
+                  <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
+                  <ZoomAnimation />
 
-                <Marker position={[latitude, longitude]}>
-                  <Popup>
-                    <div className="text-center p-2">
-                      <h3 className="font-bold text-lg">{name}</h3>
-                      <p className="my-1">
-                        Posizione registrata:
-                        <br />
-                        {formattedTime}
-                      </p>
-                      <p className="text-xs mt-1 text-gray-500">
-                        Lat: {latitude.toFixed(6)}, Long: {longitude.toFixed(6)}
-                      </p>
-                    </div>
-                  </Popup>
-                </Marker>
-              </MapContainer>
+                  <Marker position={[latitude, longitude]}>
+                    <Popup>
+                      <div className="text-center p-2">
+                        <h3 className="font-bold text-lg">{name}</h3>
+                        <p className="my-1">
+                          Posizione registrata:
+                          <br />
+                          {formattedTime}
+                        </p>
+                        <p className="text-xs mt-1 text-gray-500">
+                          Lat: {latitude.toFixed(6)}, Long:{" "}
+                          {longitude.toFixed(6)}
+                        </p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                </MapContainer>
+              )}
             </div>
           </div>
           <div className="px-4 py-3 bg-gray-50 text-right">
