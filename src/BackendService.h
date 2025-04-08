@@ -1,6 +1,13 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <queue>
 #include "LoRaMesh/LoRaMesh.h"
+
+struct barca {
+    String targa;
+    String key;
+    String stato;
+};
 
 class BackendService
 {
@@ -20,4 +27,6 @@ public:
     bool sendPositionUpdate(const LoRaMesh_message_t &message);
 
     String getKeyFromTarga(String targa);
+
+    void getBoatsToChange(std::queue<barca>&);
 };

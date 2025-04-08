@@ -6,12 +6,20 @@
 #include "LoRaMesh/LoRaMesh.h"
 #include "LoRaMesh/state_t.h"
 #include "BackendService.h"
+#include "esp32-hal.h"
 #include <iot_board.h>
 #include <queue>
 using std::queue;
 
+// Coda di messaggi
 queue<LoRaMesh_message_t> coda;
 
+// timer per la nuova fetch
+unsigned long nextFetch = 0;
+// intervallo per ogni fetch
+int fetchInterval = 10 * 1000;
+// lista di barche a cui bisogna cambiare lo stato
+queue<barca> codaBarche;
 
 // Dichiarazione oggetto Preferences
 Preferences preferences;
@@ -91,20 +99,20 @@ void loop()
 
     if (WiFi.status() == WL_CONNECTED)
     {
-        while(!coda.empty())
-        {
-            LoRaMesh_message_t message = (LoRaMesh_message_t)coda.front();        
-            coda.pop();
-            Serial.print("Destinatario: ");
-            for(int i = 0; i < 7; i++) {
-                Serial.print(message.targa_destinatario[i]);
-            }
-            Serial.println();
-            String key = backendService.getKeyFromTarga(message.targa_mittente);
-            xorBuffer(&message.payload, sizeof(LoRaMesh_payload_t), (uint8_t*)key.c_str(), KEY_LEN);
-            Serial.println("Sequenza: " + String(message.payload.message_sequence));
-            backendService.sendMessageToBackend(message);
-
+        /*while(!coda.empty())*/
+        /*{*/
+            /*LoRaMesh_message_t message = (LoRaMesh_message_t)coda.front();        */
+            /*coda.pop();*/
+            /*Serial.print("Destinatario: ");*/
+            /*for(int i = 0; i < 7; i++) {*/
+            /*    Serial.print(message.targa_destinatario[i]);*/
+            /*}*/
+            /*Serial.println();*/
+            /*String key = backendService.getKeyFromTarga(message.targa_mittente);*/
+            /*xorBuffer(&message.payload, sizeof(LoRaMesh_payload_t), (uint8_t*)key.c_str(), KEY_LEN);*/
+            /*Serial.println("Sequenza: " + String(message.payload.message_sequence));*/
+            /*backendService.sendMessageToBackend(message);*/
+            /**/
             /*Serial.println("\n=== Messaggio LoRaMesh ricevuto ===");*/
             /**/
             /*Serial.print("Destinatario: ");*/
@@ -129,13 +137,36 @@ void loop()
             /*Serial.println("Direzione: " + String(message.payload.direzione) + "°");*/
             /*Serial.println("Stato: " + String(message.payload.stato == st_ormeggio ? "Ormeggiata" : "Rubata"));*/
             /*Serial.println("===================================\n");*/
-        }
-        /*static unsigned long lastSendTime = 0;*/
-        /*if (millis() - lastSendTime > 30000)*/
-        /*{*/
-        /*    Serial.println("Dovrei inviare al be");*/
-        /*    inviaMessaggiTest();*/
         /*}*/
+
+        if(millis() > nextFetch) 
+        {
+            backendService.getBoatsToChange(codaBarche);
+            Serial.println("Chiedo le barche al be");
+            while(!codaBarche.empty()) 
+            {
+                barca boat = codaBarche.front();
+                codaBarche.pop();
+
+                LoRaMesh_payload_t payload = 
+                    {
+                        .message_sequence = 0,
+                        .pos_x = 0,
+                        .pos_y = 0,
+                        .direzione = 0,
+                    };
+                if(boat.stato == "ormeggiata") {
+                    payload.stato = st_ormeggio;
+                }
+                else if(boat.stato == "movimento") {
+                    payload.stato = st_movimento;
+                }
+                LoRaMesh::sendMessage(boat.targa.c_str(), payload, boat.key.c_str());
+                LoRaMesh::update();
+                Serial.println("Ho inviato il messaggio");
+            }
+            nextFetch = millis() + fetchInterval;
+        }
     }
     else
     {

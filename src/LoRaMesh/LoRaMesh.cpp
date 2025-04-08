@@ -91,7 +91,7 @@ void LoRaMesh::onReceive(int packetSize)
     return;
 }
 
-int LoRaMesh::sendMessage(const char targa_destinatario[7], LoRaMesh_payload_t payload)
+int LoRaMesh::sendMessage(const char targa_destinatario[7], LoRaMesh_payload_t payload, String privateKey)
 {
     // Stiamo già inviando un messaggio. non conviene inviare altri messaggi
     if (messageToSend.message_id != 0)
@@ -100,7 +100,7 @@ int LoRaMesh::sendMessage(const char targa_destinatario[7], LoRaMesh_payload_t p
     }
 
     payload.message_sequence = LoRaMesh::message_sequence++;
-    xorBuffer(&payload, sizeof(LoRaMesh_payload_t), privateKey, sizeof(privateKey));
+    xorBuffer(&payload, sizeof(LoRaMesh_payload_t), (uint8_t*)privateKey.c_str(), KEY_LEN);
 
     messageToSend = {
         .message_id = (uint16_t)random(1, 65535),

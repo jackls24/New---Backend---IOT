@@ -1,4 +1,6 @@
 #include "BackendService.h"
+#include "ArduinoJson/Object/JsonPair.hpp"
+#include <queue>
 
 BackendService::BackendService()
 {
@@ -35,14 +37,14 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
     int httpResponseCode = http.PUT(jsonPayload);
 
     String response = http.getString();
-    Serial.println(response);
+    /*Serial.println(response);*/
 
     /*String key = getKeyFromTarga(message.targa_mittente);*/
 
     if (httpResponseCode > 0)
     {
         String response = http.getString();
-        Serial.println("Body risposta: " + response);
+        /*Serial.println("Body risposta: " + response);*/
     }
     else
     {
@@ -73,7 +75,7 @@ String BackendService::getKeyFromTarga(String targa)
     if (httpResponseCode > 0)
     {
         String response = http.getString();
-        Serial.println("Risposta completa: " + response);
+        /*Serial.println("Risposta completa: " + response);*/
 
         DynamicJsonDocument responseDoc(1024);
         DeserializationError error = deserializeJson(responseDoc, response);
@@ -86,26 +88,26 @@ String BackendService::getKeyFromTarga(String targa)
             return "";
         }
 
-        Serial.println("Contenuto JSON deserializzato:");
+        /*Serial.println("Contenuto JSON deserializzato:");*/
         serializeJsonPretty(responseDoc, Serial);
         Serial.println();
 
         if (responseDoc.containsKey("key"))
         {
             String key = responseDoc["key"].as<String>();
-            Serial.println("Key estratta: " + key);
+            /*Serial.println("Key estratta: " + key);*/
             http.end();
             return key;
         }
         else
         {
-            Serial.println("Campo 'key' non trovato nella risposta JSON");
+            /*Serial.println("Campo 'key' non trovato nella risposta JSON");*/
 
             for (JsonPair kv : responseDoc.as<JsonObject>())
             {
-                Serial.print("Campo disponibile: ");
-                Serial.print(kv.key().c_str());
-                Serial.print(" = ");
+                /*Serial.print("Campo disponibile: ");*/
+                /*Serial.print(kv.key().c_str());*/
+                /*Serial.print(" = ");*/
                 serializeJson(kv.value(), Serial);
                 Serial.println();
             }
@@ -139,7 +141,7 @@ bool BackendService::sendStateChangeNotification(const LoRaMesh_message_t &messa
     String jsonPayload;
     serializeJson(doc, jsonPayload);
 
-    Serial.println("Invio notifica cambiamento stato: " + jsonPayload);
+    /*Serial.println("Invio notifica cambiamento stato: " + jsonPayload);*/
 
     int httpResponseCode = http.POST(jsonPayload);
 
@@ -172,7 +174,7 @@ bool BackendService::sendPositionUpdate(const LoRaMesh_message_t &message)
     String jsonPayload;
     serializeJson(doc, jsonPayload);
 
-    Serial.println("Invio aggiornamento posizione: " + jsonPayload);
+    /*Serial.println("Invio aggiornamento posizione: " + jsonPayload);*/
 
     int httpResponseCode = http.POST(jsonPayload);
 
@@ -185,4 +187,51 @@ bool BackendService::sendPositionUpdate(const LoRaMesh_message_t &message)
     http.end();
 
     return httpResponseCode >= 200 && httpResponseCode < 300;
+}
+
+void BackendService::getBoatsToChange(std::queue<barca> &coda) {
+    HTTPClient http;
+
+    http.begin(baseUrl + "/state");
+    http.addHeader("Content-Type", "application/json");
+
+    int httpResponseCode = http.GET();
+    if (httpResponseCode > 0)
+    {
+        String response = http.getString();
+        Serial.println(response);
+
+        DynamicJsonDocument responseDoc(1024);
+        DeserializationError error = deserializeJson(responseDoc, response);
+
+        
+        if (error)
+        {
+            Serial.print("Errore deserializeJson(): ");
+            Serial.println(error.c_str());
+            http.end();
+            return;
+        }
+
+        while(!coda.empty()) 
+        {
+            coda.pop();
+        }
+
+        for (JsonObject obj : responseDoc.as<JsonArray>()) {
+            const char* targa = obj["targa"];
+            const char* key = obj["key"];
+            const char* stato = obj["stato"];
+
+            barca nuovaBarca = 
+                {
+                    .targa = String(targa),
+                    .key = String(key),
+                    .stato = String(stato),
+                };
+            coda.push(nuovaBarca);
+        }
+
+    }
+    http.end();
 }

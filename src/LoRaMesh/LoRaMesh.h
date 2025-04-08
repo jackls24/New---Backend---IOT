@@ -37,7 +37,7 @@ public:
     LoRaMesh() = delete;
 
     static bool init(const char targa[7], void (*userOnReceiveCallBack)(LoRaMesh_message_t));
-    static int sendMessage(const char targa_destinatario[7], LoRaMesh_payload_t payload);
+    static int sendMessage(const char targa_destinatario[7], LoRaMesh_payload_t payload, String key);
     static float calculateDistance(int rssi);
     static void update();
 
