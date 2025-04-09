@@ -99,20 +99,21 @@ void loop()
 
     if (WiFi.status() == WL_CONNECTED)
     {
-        /*while(!coda.empty())*/
-        /*{*/
-            /*LoRaMesh_message_t message = (LoRaMesh_message_t)coda.front();        */
-            /*coda.pop();*/
+        while(!coda.empty())
+        {
+            LoRaMesh_message_t message = (LoRaMesh_message_t)coda.front();        
+            coda.pop();
             /*Serial.print("Destinatario: ");*/
             /*for(int i = 0; i < 7; i++) {*/
             /*    Serial.print(message.targa_destinatario[i]);*/
             /*}*/
             /*Serial.println();*/
-            /*String key = backendService.getKeyFromTarga(message.targa_mittente);*/
-            /*xorBuffer(&message.payload, sizeof(LoRaMesh_payload_t), (uint8_t*)key.c_str(), KEY_LEN);*/
-            /*Serial.println("Sequenza: " + String(message.payload.message_sequence));*/
-            /*backendService.sendMessageToBackend(message);*/
-            /**/
+            String key = backendService.getKeyFromTarga(message.targa_mittente);
+            xorBuffer(&message.payload, sizeof(LoRaMesh_payload_t), (uint8_t*)key.c_str(), KEY_LEN);
+            Serial.println("Sequenza: " + String(message.payload.message_sequence));
+            backendService.sendMessageToBackend(message);
+            backendService.sendPosition(message);
+
             /*Serial.println("\n=== Messaggio LoRaMesh ricevuto ===");*/
             /**/
             /*Serial.print("Destinatario: ");*/
@@ -137,7 +138,7 @@ void loop()
             /*Serial.println("Direzione: " + String(message.payload.direzione) + "°");*/
             /*Serial.println("Stato: " + String(message.payload.stato == st_ormeggio ? "Ormeggiata" : "Rubata"));*/
             /*Serial.println("===================================\n");*/
-        /*}*/
+        }
 
         if(millis() > nextFetch) 
         {

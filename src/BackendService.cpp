@@ -189,6 +189,45 @@ bool BackendService::sendPositionUpdate(const LoRaMesh_message_t &message)
     return httpResponseCode >= 200 && httpResponseCode < 300;
 }
 
+bool BackendService::sendPosition(const LoRaMesh_message_t &message)
+{
+    HTTPClient http;
+
+    // Endpoint per aggiornamenti posizione
+    String targa = "";
+    for(int i = 0; i < 7; i++) {
+        targa += message.targa_mittente[i];
+    }
+    http.begin(baseUrl + "/location/targa/" + targa);
+    http.addHeader("Content-Type", "application/json");
+
+    DynamicJsonDocument doc(512);
+    doc["targa"] = targa;
+    doc["posizione_x"] = message.payload.pos_x; // Corretto: usa pos_x invece di posX
+    doc["posizione_y"] = message.payload.pos_y; // Corretto: usa pos_y invece di posY
+    doc["direzione"] = message.payload.direzione;
+    doc["timestamp"] = message.payload.message_sequence;
+    /*doc["livello_batteria"] = message.payload.livello_batteria; // Aggiunto livello_batteria*/
+
+    String jsonPayload;
+    serializeJson(doc, jsonPayload);
+
+    /*Serial.println("Invio aggiornamento posizione: " + jsonPayload);*/
+
+    int httpResponseCode = http.POST(jsonPayload);
+
+    if (httpResponseCode <= 0)
+    {
+        Serial.print("Errore nella richiesta HTTP: ");
+        Serial.println(http.errorToString(httpResponseCode));
+    }
+
+    http.end();
+
+    return httpResponseCode >= 200 && httpResponseCode < 300;
+}
+
+
 void BackendService::getBoatsToChange(std::queue<barca> &coda) {
     HTTPClient http;
 
