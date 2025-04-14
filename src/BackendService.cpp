@@ -7,23 +7,27 @@ BackendService::BackendService()
     Serial.println("Inizializzazione BackendService su " + baseUrl);
 }
 
+String BackendService::formatTargaString(const char *targa, int length)
+{
+    char targa_temp[length + 1];
+    strncpy(targa_temp, targa, length);
+    targa_temp[length] = '\0';
+    return String(targa_temp);
+}
+
 bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
 {
     HTTPClient http;
 
-    String targa = "";
-    for(int i = 0; i < 7; i++) {
-        targa += message.targa_mittente[i];
-    }
-    String endpoint = baseUrl + "/boats/targa/" + targa;
-    Serial.println(baseUrl + "/boats/targa/" + targa);
+    String targa_mittente = formatTargaString(message.targa_mittente, 7);
+    String endpoint = baseUrl + "/boats/targa/" + targa_mittente;
 
     http.begin(endpoint);
     http.addHeader("Content-Type", "application/json");
 
+    // Creazione payload JSON
     DynamicJsonDocument doc(1024);
-    doc["targa_destinatario"] = message.targa_destinatario;
-    doc["targa_mittente"] = message.targa_mittente;
+    doc["targa_mittente"] = targa_mittente;
     doc["message_id"] = message.message_id;
     doc["direzione"] = message.payload.direzione;
     doc["posizione_x"] = message.payload.pos_x;
@@ -33,33 +37,52 @@ bool BackendService::sendMessageToBackend(const LoRaMesh_message_t &message)
 
     String jsonPayload;
     serializeJson(doc, jsonPayload);
+    Serial.println("sendMessageToBackend - Payload: " + jsonPayload);
 
     int httpResponseCode = http.PUT(jsonPayload);
-
-    String response = http.getString();
-    /*Serial.println(response);*/
-
-    /*String key = getKeyFromTarga(message.targa_mittente);*/
 
     if (httpResponseCode > 0)
     {
         String response = http.getString();
-        /*Serial.println("Body risposta: " + response);*/
+
+        if (response.length() > 0)
+        {
+            Serial.println("sendMessageToBackend - risposta: " + response);
+
+            if (response.startsWith("{") || response.startsWith("["))
+            {
+                DynamicJsonDocument respDoc(1024);
+                DeserializationError error = deserializeJson(respDoc, response);
+                if (!error)
+                {
+                    Serial.println("Risposta JSON formattata:");
+                    serializeJsonPretty(respDoc, Serial);
+                    Serial.println();
+                }
+            }
+        }
+        else
+        {
+            Serial.println("Risposta vuota");
+        }
     }
     else
     {
-        Serial.print("Errore: ");
+        Serial.print("ERRORE: ");
         Serial.println(http.errorToString(httpResponseCode));
     }
 
+    // Chiusura connessione
     http.end();
 
-    return httpResponseCode >= 200 && httpResponseCode < 300;
+    bool success = httpResponseCode >= 200 && httpResponseCode < 300;
+    return success;
 }
 
 String BackendService::getKeyFromTarga(String targa)
 {
     HTTPClient http;
+    String key;
 
     char targa_temp[8];
     strncpy(targa_temp, targa.c_str(), 7);
@@ -90,11 +113,10 @@ String BackendService::getKeyFromTarga(String targa)
 
         /*Serial.println("Contenuto JSON deserializzato:");*/
         serializeJsonPretty(responseDoc, Serial);
-        Serial.println();
 
         if (responseDoc.containsKey("key"))
         {
-            String key = responseDoc["key"].as<String>();
+            key = responseDoc["key"].as<String>();
             /*Serial.println("Key estratta: " + key);*/
             http.end();
             return key;
@@ -118,6 +140,8 @@ String BackendService::getKeyFromTarga(String targa)
         Serial.print("Errore nella richiesta HTTP: ");
         Serial.println(http.errorToString(httpResponseCode));
     }
+
+    Serial.println("getKeyFromTarga" + key);
 
     http.end();
     return "";
@@ -156,63 +180,31 @@ bool BackendService::sendStateChangeNotification(const LoRaMesh_message_t &messa
     return httpResponseCode >= 200 && httpResponseCode < 300;
 }
 
-bool BackendService::sendPositionUpdate(const LoRaMesh_message_t &message)
-{
-    HTTPClient http;
-
-    // Endpoint per aggiornamenti posizione
-    http.begin(baseUrl + "/api/position-update");
-    http.addHeader("Content-Type", "application/json");
-
-    DynamicJsonDocument doc(512);
-    doc["targa_barca"] = message.targa_mittente;
-    doc["posizione_x"] = message.payload.pos_x; // Corretto: usa pos_x invece di posX
-    doc["posizione_y"] = message.payload.pos_y; // Corretto: usa pos_y invece di posY
-    doc["direzione"] = message.payload.direzione;
-    /*doc["livello_batteria"] = message.payload.livello_batteria; // Aggiunto livello_batteria*/
-
-    String jsonPayload;
-    serializeJson(doc, jsonPayload);
-
-    /*Serial.println("Invio aggiornamento posizione: " + jsonPayload);*/
-
-    int httpResponseCode = http.POST(jsonPayload);
-
-    if (httpResponseCode <= 0)
-    {
-        Serial.print("Errore nella richiesta HTTP: ");
-        Serial.println(http.errorToString(httpResponseCode));
-    }
-
-    http.end();
-
-    return httpResponseCode >= 200 && httpResponseCode < 300;
-}
-
 bool BackendService::sendPosition(const LoRaMesh_message_t &message)
 {
+    if (!message.payload.stato == st_rubata)
+        return false;
+
     HTTPClient http;
 
-    // Endpoint per aggiornamenti posizione
-    String targa = "";
-    for(int i = 0; i < 7; i++) {
-        targa += message.targa_mittente[i];
-    }
+    String targa = formatTargaString(message.targa_mittente, 7);
+
     http.begin(baseUrl + "/location/targa/" + targa);
     http.addHeader("Content-Type", "application/json");
 
+    Serial.println("sendPosition - Targa: " + baseUrl + "/location/targa/" + targa);
+
     DynamicJsonDocument doc(512);
     doc["targa"] = targa;
-    doc["posizione_x"] = message.payload.pos_x; // Corretto: usa pos_x invece di posX
-    doc["posizione_y"] = message.payload.pos_y; // Corretto: usa pos_y invece di posY
+    doc["x"] = message.payload.pos_x;
+    doc["y"] = message.payload.pos_y;
     doc["direzione"] = message.payload.direzione;
     doc["timestamp"] = message.payload.message_sequence;
-    /*doc["livello_batteria"] = message.payload.livello_batteria; // Aggiunto livello_batteria*/
 
     String jsonPayload;
     serializeJson(doc, jsonPayload);
 
-    /*Serial.println("Invio aggiornamento posizione: " + jsonPayload);*/
+    Serial.println("Invio aggiornamento posizione: " + jsonPayload);
 
     int httpResponseCode = http.POST(jsonPayload);
 
@@ -227,8 +219,8 @@ bool BackendService::sendPosition(const LoRaMesh_message_t &message)
     return httpResponseCode >= 200 && httpResponseCode < 300;
 }
 
-
-void BackendService::getBoatsToChange(std::queue<barca> &coda) {
+void BackendService::getBoatsToChange(std::queue<barca> &coda)
+{
     HTTPClient http;
 
     http.begin(baseUrl + "/state");
@@ -238,12 +230,12 @@ void BackendService::getBoatsToChange(std::queue<barca> &coda) {
     if (httpResponseCode > 0)
     {
         String response = http.getString();
-        Serial.println(response);
-
         DynamicJsonDocument responseDoc(1024);
+
+        Serial.println("getBoatsToChange Risposta completa: " + response);
+
         DeserializationError error = deserializeJson(responseDoc, response);
 
-        
         if (error)
         {
             Serial.print("Errore deserializeJson(): ");
@@ -252,17 +244,18 @@ void BackendService::getBoatsToChange(std::queue<barca> &coda) {
             return;
         }
 
-        while(!coda.empty()) 
+        while (!coda.empty())
         {
             coda.pop();
         }
 
-        for (JsonObject obj : responseDoc.as<JsonArray>()) {
-            const char* targa = obj["targa"];
-            const char* key = obj["key"];
-            const char* stato = obj["stato"];
+        for (JsonObject obj : responseDoc.as<JsonArray>())
+        {
+            const char *targa = obj["targa"];
+            const char *key = obj["key"];
+            const char *stato = obj["stato"];
 
-            barca nuovaBarca = 
+            barca nuovaBarca =
                 {
                     .targa = String(targa),
                     .key = String(key),
@@ -270,7 +263,6 @@ void BackendService::getBoatsToChange(std::queue<barca> &coda) {
                 };
             coda.push(nuovaBarca);
         }
-
     }
     http.end();
 }

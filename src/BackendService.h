@@ -3,7 +3,8 @@
 #include <queue>
 #include "LoRaMesh/LoRaMesh.h"
 
-struct barca {
+struct barca
+{
     String targa;
     String key;
     String stato;
@@ -12,7 +13,7 @@ struct barca {
 class BackendService
 {
 private:
-    const String baseUrl = "http://192.168.0.118:5001";
+    const String baseUrl = "http://192.168.120.118:5001";
 
 public:
     BackendService();
@@ -24,10 +25,11 @@ public:
     bool sendStateChangeNotification(const LoRaMesh_message_t &message);
 
     // Invia aggiornamento posizione
-    bool sendPositionUpdate(const LoRaMesh_message_t &message);
     bool sendPosition(const LoRaMesh_message_t &message);
 
     String getKeyFromTarga(String targa);
 
-    void getBoatsToChange(std::queue<barca>&);
+    void getBoatsToChange(std::queue<barca> &);
+
+    String formatTargaString(const char *targa, int length);
 };

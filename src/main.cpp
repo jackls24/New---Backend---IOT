@@ -77,7 +77,6 @@ void setup()
     IoTBoard::init_display();
     IoTBoard::init_leds();
 
-    Serial.println("\n\nTest comunicazione con backend");
     LoRaMesh::init(targa_gabbiotto, onReceive);
 
     WiFi.begin(ssid, password);
@@ -99,9 +98,9 @@ void loop()
 
     if (WiFi.status() == WL_CONNECTED)
     {
-        while(!coda.empty())
+        while (!coda.empty())
         {
-            LoRaMesh_message_t message = (LoRaMesh_message_t)coda.front();        
+            LoRaMesh_message_t message = (LoRaMesh_message_t)coda.front();
             coda.pop();
             /*Serial.print("Destinatario: ");*/
             /*for(int i = 0; i < 7; i++) {*/
@@ -109,8 +108,8 @@ void loop()
             /*}*/
             /*Serial.println();*/
             String key = backendService.getKeyFromTarga(message.targa_mittente);
-            xorBuffer(&message.payload, sizeof(LoRaMesh_payload_t), (uint8_t*)key.c_str(), KEY_LEN);
-            Serial.println("Sequenza: " + String(message.payload.message_sequence));
+            xorBuffer(&message.payload, sizeof(LoRaMesh_payload_t), (uint8_t *)key.c_str(), KEY_LEN);
+
             backendService.sendMessageToBackend(message);
             backendService.sendPosition(message);
 
@@ -140,31 +139,32 @@ void loop()
             /*Serial.println("===================================\n");*/
         }
 
-        if(millis() > nextFetch) 
+        if (millis() > nextFetch)
         {
             backendService.getBoatsToChange(codaBarche);
-            Serial.println("Chiedo le barche al be");
-            while(!codaBarche.empty()) 
+
+            while (!codaBarche.empty())
             {
                 barca boat = codaBarche.front();
                 codaBarche.pop();
 
-                LoRaMesh_payload_t payload = 
+                LoRaMesh_payload_t payload =
                     {
                         .message_sequence = 0,
                         .pos_x = 0,
                         .pos_y = 0,
                         .direzione = 0,
                     };
-                if(boat.stato == "ormeggiata") {
+                if (boat.stato == "ormeggiata")
+                {
                     payload.stato = st_ormeggio;
                 }
-                else if(boat.stato == "movimento") {
+                else if (boat.stato == "movimento")
+                {
                     payload.stato = st_movimento;
                 }
                 LoRaMesh::sendMessage(boat.targa.c_str(), payload, boat.key.c_str());
                 LoRaMesh::update();
-                Serial.println("Ho inviato il messaggio");
             }
             nextFetch = millis() + fetchInterval;
         }
